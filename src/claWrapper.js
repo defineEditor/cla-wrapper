@@ -22,7 +22,7 @@ const defaultGetItemGroupOptions = {};
 /**
  * GetItemGroupsOptions
  * @typedef {Object} GetItemGroupsOptions
- * @property {String} short - Specifies that only a short description of itemGroups is required
+ * @property {Boolean} short - Specifies that only a short description of itemGroups is required
  * @property {String} format - Specifies the output format. Possible values: json, csv.
  */
 const defaultGetItemGroupsOptions = { short: 'false' };
@@ -239,12 +239,52 @@ class CdiscLibrary {
     }
 
     /**
+     * Get an object with all datasets/domains/dataStructure
+     * <br> This method does not update the main object
+     *
+     * @param options {Object} Detail options
+     * <br> type='short' {String} Short/extended list of product attributes. Possible values: short, long
+     * <br> format='object' {String} Output format. Possible values: json, csv, object
+     * @returns {Object|String} Product list with details
+     */
+    async getProductDetails ({ type = 'short', format = 'object' } = {}) {
+        let result = [];
+        await this.getProductClasses();
+        let productClasses = await this.getProductClasses();
+        Object.values(productClasses).forEach(pc => {
+            Object.values(pc.getProductGroups()).forEach(pg => {
+                Object.values(pg.getProducts()).forEach(product => {
+                    let productDetails = {};
+                    if (type === 'short') {
+                        productDetails.id = product.id;
+                        productDetails.label = product.label;
+                    } else if (type === 'long') {
+                        for (let prop in product) {
+                            // Remove all properties, which are objects or undefined
+                            if (typeof product[prop] !== 'object' || product[prop] === undefined) {
+                                productDetails[prop] = product[prop];
+                            }
+                        }
+                    }
+                    result.push(productDetails);
+                });
+            });
+        });
+        if (format === 'object') {
+            return result;
+        } else {
+            return convertToFormat(result, format);
+        }
+    }
+
+    /**
      * Get traffic used by the library in a human-readable format
      *
      * @param type='all' {String} Type of the traffic. Possible values: all, incoming, outgoing
-     * @returns {String} Traffic used in a human-readable format
+     * @param format='char' {String} Output format. Possible values: char, num
+     * @returns {String|Integer} Traffic used in a human-readable format or number of bytes
      */
-    getTraffic (type = 'all') {
+    getTraffic (type = 'all', format = 'char') {
         const byteUnits = [' kB', ' MB', ' GB', ' TB', 'PB', 'EB', 'ZB', 'YB'];
         let traffic = 0;
 
@@ -256,16 +296,20 @@ class CdiscLibrary {
             traffic = this.coreObject.traffic.outgoing;
         }
 
-        let i = -1;
-        do {
-            traffic = traffic / 1024;
-            i++;
-        } while (traffic > 1024);
-
-        if (traffic === 0) {
-            return '0 bytes';
+        if (format === 'num') {
+            return traffic;
         } else {
-            return Math.max(traffic, 0.1).toFixed(1) + byteUnits[i];
+            let i = -1;
+            do {
+                traffic = traffic / 1024;
+                i++;
+            } while (traffic > 1024);
+
+            if (traffic === 0) {
+                return '0 bytes';
+            } else {
+                return Math.max(traffic, 0.1).toFixed(1) + byteUnits[i];
+            }
         }
     }
 }
@@ -397,13 +441,26 @@ class ProductGroup {
     }
 
     /**
+     * Get an object with products
+     *
+     * @returns {Object} Products
+     */
+    getProducts () {
+        if (this.products) {
+            return this.products;
+        } else {
+            return {};
+        }
+    }
+
+    /**
      * Get a list of product names
      *
      * @returns {Array} List of product names (IDs)
      */
     getProductList () {
         if (this.products) {
-            return Object.keys(this.products).map(pId => this.products[pId].id);
+            return Object.keys(this.getProducts()).map(pId => this.products[pId].id);
         } else {
             return [];
         }
