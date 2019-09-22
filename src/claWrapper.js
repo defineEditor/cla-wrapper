@@ -1,7 +1,7 @@
-// const fs = require('fs');
-// const path = require('path');
-// const { promisify } = require('util');
-// const readFile = promisify(fs.readFile);
+const fs = require('fs');
+const path = require('path');
+const { promisify } = require('util');
+const readFile = promisify(fs.readFile);
 const apiRequest = require('./utils/apiRequest.js');
 const convertToFormat = require('./utils/convertToFormat.js');
 const matchItem = require('./utils/matchItem.js');
@@ -49,10 +49,9 @@ class CoreObject {
      * Make an API request
      *
      * @param endpoint CDISC Library API endpoint
-     * @returns {Object|null} API response, if resource does not exist
+     * @returns {Object|Number} API response, if API request failed, a status code is returned
      */
     async apiRequest (endpoint) {
-        /*
         if (endpoint === '/mdr/products') {
             let data = await readFile(path.join(path.resolve(), '/data/mdrproducts.json'), 'utf8');
             return JSON.parse(data);
@@ -78,21 +77,49 @@ class CoreObject {
             let data = await readFile(path.join(path.resolve(), '/data/adamig-1-1.adsl.usubjid.json'), 'utf8');
             return JSON.parse(data);
         } else {
+            let response = await apiRequest({ username: this.username, password: this.password, url: this.baseUrl + endpoint });
+            // Count traffic
+            if (response.connection) {
+                this.traffic.incoming += response.connection.bytesRead;
+                this.traffic.outgoing += response.connection.bytesWritten;
+            }
+            if (response.statusCode === 200) {
+                return JSON.parse(response.body);
+            } else if (response.statusCode !== undefined) {
+                return response.statusCode;
+            } else {
+                throw new Error('Request failed with code. Response was: ' + response.body);
+            }
         }
-        */
-        let response = await apiRequest({ username: this.username, password: this.password, url: this.baseUrl + endpoint });
-        // Count traffic
-        if (response.connection) {
-            this.traffic.incoming += response.connection.bytesRead;
-            this.traffic.outgoing += response.connection.bytesWritten;
+    }
+}
+
+class BasicFunctions {
+    /**
+     * Functions used in multiple classes
+     */
+
+    /**
+     * Load object from the CDISC Library
+     *
+     * @param {String} [href] CDISC Library API endpoint
+     * @returns {boolean} Rerutns true in the object was successfully loaded, false otherwise
+     */
+    async load (href) {
+        let link = href;
+        if (href === undefined && this.href !== undefined) {
+            link = this.href;
         }
-        if (response.statusCode === 200) {
-            return JSON.parse(response.body);
-        } else if (response.statusCode === 404) {
-            // Resource not found
-            return null;
+        if (this.coreObject && link) {
+            let response = await this.coreObject.apiRequest(link);
+            if (typeof response === 'object') {
+                this.parseResponse(response);
+                return true;
+            } else {
+                return false;
+            }
         } else {
-            throw new Error('Request failed with code ' + response.statusCode + ' Response was: ' + response.body);
+            return false;
         }
     }
 }
@@ -136,7 +163,7 @@ class CdiscLibrary {
                 if (pcId !== 'self') {
                     let pcRaw = dataRaw['_links'][pcId];
                     productClasses[pcId] = new ProductClass({ coreObject: this.coreObject });
-                    productClasses[pcId].parseProductClass(pcId, pcRaw);
+                    productClasses[pcId].parseResponse(pcId, pcRaw);
                 }
             });
         }
@@ -314,11 +341,13 @@ class CdiscLibrary {
     }
 }
 
-class ProductClass {
+class ProductClass extends BasicFunctions {
     /**
      * Product class
+     * @extends BasicFunctions
      */
     constructor ({ name, productGroups, coreObject } = {}) {
+        super();
         this.name = name;
         this.productGroups = productGroups;
         this.coreObject = coreObject;
@@ -330,7 +359,7 @@ class ProductClass {
      * @param name Product class name
      * @param pcRaw Raw CDISC API response
      */
-    parseProductClass (name, pcRaw) {
+    parseResponse (name, pcRaw) {
         this.name = name;
         let productGroups = {};
         if (pcRaw.hasOwnProperty('_links')) {
@@ -338,7 +367,7 @@ class ProductClass {
                 if (pgId !== 'self') {
                     let pgRaw = pcRaw['_links'][pgId];
                     productGroups[pgId] = new ProductGroup({ coreObject: this.coreObject });
-                    productGroups[pgId].parseProductGroup(pgId, pgRaw);
+                    productGroups[pgId].parseResponse(pgId, pgRaw);
                 }
             });
         }
@@ -413,11 +442,13 @@ class ProductClass {
     }
 }
 
-class ProductGroup {
+class ProductGroup extends BasicFunctions {
     /**
      * Product Group class
+     * @extends BasicFunctions
      */
     constructor ({ name, products = {}, coreObject } = {}) {
+        super();
         this.name = name;
         this.products = products;
         this.coreObject = coreObject;
@@ -430,7 +461,7 @@ class ProductGroup {
      * @param pgRaw {String} Raw CDISC API response
      * @returns {undefined}
      */
-    parseProductGroup (name, pgRaw) {
+    parseResponse (name, pgRaw) {
         this.name = name;
         let products = {};
         pgRaw.forEach(gRaw => {
@@ -501,7 +532,7 @@ class ProductGroup {
         if (id !== undefined) {
             let productRaw = await this.coreObject.apiRequest(this.products[id].href);
             product = new Product({ ...this.products[id] });
-            product.parseProduct(productRaw);
+            product.parseResponse(productRaw);
             product.fullyLoaded = true;
             this.products[id] = product;
         }
@@ -549,15 +580,17 @@ class ProductGroup {
     }
 }
 
-class Product {
+class Product extends BasicFunctions {
     /**
      * Product class
+     * @extends BasicFunctions
      */
     constructor ({
         id, name, title, label, type, description, source, effectiveDate,
         registrationStatus, version, dataClasses, dataStructures, codelists, href,
         coreObject, model, datasetType, fullyLoaded = false,
     } = {}) {
+        super();
         if (id) {
             this.id = id;
         } else if (href.startsWith('/mdr/ct/') || href.startsWith('/mdr/adam/')) {
@@ -624,7 +657,7 @@ class Product {
      *
      * @param pRaw {Object} Raw CDISC API response
      */
-    parseProduct (pRaw) {
+    parseResponse (pRaw) {
         this.name = pRaw.name;
         this.description = pRaw.description;
         this.source = pRaw.source;
@@ -643,7 +676,7 @@ class Product {
                     href,
                     coreObject: this.coreObject
                 });
-                dataStructure.parseDataStructure(dataStructureRaw);
+                dataStructure.parseResponse(dataStructureRaw);
                 dataStructures[dataStructure.id] = dataStructure;
             });
             this.dataStructures = dataStructures;
@@ -660,7 +693,7 @@ class Product {
                     href,
                     coreObject: this.coreObject
                 });
-                dataClass.parseDataClass(dataClassRaw);
+                dataClass.parseResponse(dataClassRaw);
                 dataClasses[dataClass.id] = dataClass;
             });
             this.dataClasses = dataClasses;
@@ -706,7 +739,7 @@ class Product {
             } else {
                 // Load the full product
                 let productRaw = await this.coreObject.apiRequest(this.href);
-                this.parseProduct(productRaw);
+                this.parseResponse(productRaw);
                 this.fullyLoaded = true;
             }
         } else {
@@ -796,7 +829,7 @@ class Product {
                     href,
                     coreObject: this.coreObject
                 });
-                result.parseDataStructure(dsRaw);
+                result.parseResponse(dsRaw);
                 this.dataStructures[result.id] = result;
             } else if (['datasets', 'domains'].includes(this.datasetType)) {
                 if (this.datasetType === 'datasets') {
@@ -805,14 +838,14 @@ class Product {
                         href,
                         coreObject: this.coreObject
                     });
-                    result.parseDataset(dsRaw);
+                    result.parseResponse(dsRaw);
                 } else if (this.datasetType === 'domains') {
                     result = new Domain({
                         name: dsRaw.name,
                         href,
                         coreObject: this.coreObject
                     });
-                    result.parseDomain(dsRaw);
+                    result.parseResponse(dsRaw);
                 }
                 // Create a class to add this itemgroup to the main object
                 if (dsRaw['_links'] && dsRaw['_links'].parentClass) {
@@ -874,11 +907,13 @@ class Product {
     }
 }
 
-class DataStructure {
+class DataStructure extends BasicFunctions {
     /**
      * Data Structure class
+     * @extends BasicFunctions
      */
     constructor ({ name, label, description, className, analysisVariableSets, href, coreObject } = {}) {
+        super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
         this.name = name;
         this.label = label;
@@ -894,7 +929,7 @@ class DataStructure {
      *
      * @param dsRaw Raw CDISC API response
      */
-    parseDataStructure (dsRaw) {
+    parseResponse (dsRaw) {
         this.name = dsRaw.name;
         this.label = dsRaw.label || dsRaw.title;
         this.description = dsRaw.description;
@@ -917,7 +952,7 @@ class DataStructure {
                     href,
                     coreObject: this.coreObject
                 });
-                analysisVariableSets[id].parseAnalysisVariableSet(analysisVariableSetRaw);
+                analysisVariableSets[id].parseResponse(analysisVariableSetRaw);
             });
         }
         this.analysisVariableSets = analysisVariableSets;
@@ -987,11 +1022,13 @@ class DataStructure {
     }
 }
 
-class DataClass {
+class DataClass extends BasicFunctions {
     /**
      * Dataset Class class
+     * @extends BasicFunctions
      */
     constructor ({ name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject } = {}) {
+        super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
         this.name = name;
         this.label = label;
@@ -1009,7 +1046,7 @@ class DataClass {
      *
      * @param dcRaw Raw CDISC API response
      */
-    parseDataClass (dcRaw) {
+    parseResponse (dcRaw) {
         this.name = dcRaw.name;
         this.label = dcRaw.label;
         this.description = dcRaw.description;
@@ -1031,7 +1068,7 @@ class DataClass {
                     href,
                     coreObject: this.coreObject
                 });
-                datasets[id].parseDataset(datasetRaw);
+                datasets[id].parseResponse(datasetRaw);
             });
             this.datasets = datasets;
         }
@@ -1049,7 +1086,7 @@ class DataClass {
                         coreObject: this.coreObject
                     });
                     classVariables[variable.id] = variable;
-                    classVariables[variable.id].parseVariable(variableRaw);
+                    classVariables[variable.id].parseResponse(variableRaw);
                 });
             }
             this.classVariables = classVariables;
@@ -1068,7 +1105,7 @@ class DataClass {
                         coreObject: this.coreObject
                     });
                     cdashModelFields[field.id] = field;
-                    cdashModelFields[field.id].parseVariable(fieldRaw);
+                    cdashModelFields[field.id].parseResponse(fieldRaw);
                 });
             }
             this.cdashModelFields = cdashModelFields;
@@ -1148,11 +1185,13 @@ class DataClass {
     }
 }
 
-class ItemGroup {
+class ItemGroup extends BasicFunctions {
     /**
      * Item Set class: base for Dataset, DataStructure, Domain
+     * @extends BasicFunctions
      */
     constructor ({ id, name, label, itemType, href, coreObject } = {}) {
+        super();
         this.itemType = itemType;
         if (name) {
             this.name = name;
@@ -1174,7 +1213,7 @@ class ItemGroup {
      *
      * @param vsRaw Raw CDISC API response
      */
-    parseItemGroup (itemRaw) {
+    parseResponse (itemRaw) {
         this.name = itemRaw.name;
         this.label = itemRaw.label;
         let items = {};
@@ -1191,7 +1230,7 @@ class ItemGroup {
                         href,
                         coreObject: this.coreObject
                     });
-                    item.parseField(itemRaw);
+                    item.parseResponse(itemRaw);
                     items[item.id] = item;
                 } else if (['analysisVariables', 'datasetVariables'].includes(this.itemType)) {
                     item = new Variable({
@@ -1199,7 +1238,7 @@ class ItemGroup {
                         href,
                         coreObject: this.coreObject
                     });
-                    item.parseVariable(itemRaw);
+                    item.parseResponse(itemRaw);
                     items[item.id] = item;
                 }
             });
@@ -1291,65 +1330,43 @@ class ItemGroup {
 class Dataset extends ItemGroup {
     /**
      * Dataset class. Extends ItemGroup class. See {@link ItemGroup} for the list of available methods.
+     * @extends ItemGroup
      */
     constructor ({ id, name, label, datasetVariables = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'datasetVariables', href, coreObject });
         this.datasetVariables = datasetVariables;
-    }
-
-    /**
-     * Parse API response to dataset
-     *
-     * @param dsRaw Raw CDISC API response
-     */
-    parseDataset (dsRaw) {
-        this.parseItemGroup(dsRaw);
     }
 }
 
 class AnalysisVariableSet extends ItemGroup {
     /**
      * Analysis Variable Set class. Extends ItemGroup class. See {@link ItemGroup} for the list of available methods.
+     * @extends ItemGroup
      */
     constructor ({ id, name, label, analysisVariables = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
         this.analysisVariables = analysisVariables;
-    }
-
-    /**
-     * Parse API response to analysis variable set
-     *
-     * @param vsRaw Raw CDISC API response
-     */
-    parseAnalysisVariableSet (vsRaw) {
-        this.parseItemGroup(vsRaw);
     }
 }
 
 class Domain extends ItemGroup {
     /**
      * Domain class. Extends ItemGroup class. See {@link ItemGroup} for the list of available methods.
+     * @extends ItemGroup
      */
     constructor ({ id, name, label, fields = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
         this.fields = fields;
     }
-
-    /**
-     * Parse API response to dataset
-     *
-     * @param dmRaw Raw CDISC API response
-     */
-    parseDomain (dmRaw) {
-        this.parseItemGroup(dmRaw);
-    }
 }
 
-class Item {
+class Item extends BasicFunctions {
     /**
      * Item class
+     * @extends BasicFunctions
      */
-    constructor ({ id, ordinal, name, label, simpleDatatype, codelist, href, coreObject } = {}) {
+    constructor ({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, href, coreObject } = {}) {
+        super();
         if (id) {
             this.id = id;
         } else {
@@ -1365,6 +1382,7 @@ class Item {
         this.label = label;
         this.simpleDatatype = simpleDatatype;
         this.codelist = codelist;
+        this.codelistHref = codelistHref;
         this.href = href;
         this.coreObject = coreObject;
     }
@@ -1374,13 +1392,14 @@ class Item {
      *
      * @param itemRaw Raw CDISC API response
      */
-    parseItem (itemRaw) {
+    parseItemResponse (itemRaw) {
         this.ordinal = itemRaw.ordinal;
         this.name = itemRaw.name;
         this.label = itemRaw.label;
         this.simpleDatatype = itemRaw.simpleDatatype;
         if (itemRaw.hasOwnProperty('_links')) {
             if (itemRaw._links.codelist && itemRaw._links.codelist.href) {
+                this.codelistHref = itemRaw._links.codelist.href;
                 this.codelist = itemRaw._links.codelist.href.replace(/.*\/(\S+)/, '$1');
             }
         }
@@ -1390,9 +1409,10 @@ class Item {
 class Variable extends Item {
     /**
      * Variable class
+     * @extends Item
      */
-    constructor ({ id, ordinal, name, label, description, core, simpleDatatype, valueList = [], codelist, describedValueDomain, href, coreObject } = {}) {
-        super({ id, ordinal, name, label, simpleDatatype, codelist, href, coreObject });
+    constructor ({ id, ordinal, name, label, description, core, simpleDatatype, valueList = [], codelist, codelistHref, describedValueDomain, href, coreObject } = {}) {
+        super({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, href, coreObject });
         this.description = description;
         this.core = core;
         this.valueList = valueList;
@@ -1404,8 +1424,8 @@ class Variable extends Item {
      *
      * @param vRaw Raw CDISC API response
      */
-    parseVariable (vRaw) {
-        this.parseItem(vRaw);
+    parseResponse (vRaw) {
+        this.parseItemResponse(vRaw);
         this.description = vRaw.description;
         this.core = vRaw.core;
         this.valueList = vRaw.valueList;
@@ -1418,9 +1438,9 @@ class Field extends Item {
      * CDASH Field class
      */
     constructor ({ id, ordinal, name, label, definition, questionText, prompt, completionInstructions, implementationNotes,
-        simpleDatatype, mappingInstructions, sdtmigDatasetMappingTargetsHref, codelist, href, coreObject } = {}
+        simpleDatatype, mappingInstructions, sdtmigDatasetMappingTargetsHref, codelist, codelistHref, href, coreObject } = {}
     ) {
-        super({ id, ordinal, name, label, simpleDatatype, codelist, href, coreObject });
+        super({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, href, coreObject });
         this.definition = definition;
         this.questionText = questionText;
         this.prompt = prompt;
@@ -1435,8 +1455,8 @@ class Field extends Item {
      *
      * @param fRaw Raw CDISC API response
      */
-    parseField (fRaw) {
-        this.parseItem(fRaw);
+    parseResponse (fRaw) {
+        this.parseItemResponse(fRaw);
         this.definition = fRaw.definition;
         this.questionText = fRaw.questionText;
         this.prompt = fRaw.prompt;
@@ -1451,11 +1471,13 @@ class Field extends Item {
     }
 }
 
-class CodeList {
+class CodeList extends BasicFunctions {
     /**
      * CodeList class
+     * @extends BasicFunctions
      */
     constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject } = {}) {
+        super();
         this.conceptId = conceptId;
         this.name = name;
         this.extensible = extensible;
@@ -1473,7 +1495,7 @@ class CodeList {
      *
      * @param clRaw Raw CDISC API response
      */
-    parseCodeList (clRaw) {
+    parseResponse (clRaw) {
         this.conceptId = clRaw.conceptId;
         this.name = clRaw.name;
         if (clRaw.extensible === 'true') {

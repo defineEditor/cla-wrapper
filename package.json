@@ -1,5 +1,5 @@
 {
-  "name": "cdisclibraryjs",
+  "name": "clawrapper",
   "version": "0.1.0",
   "description": "CDISC Library API wrapper",
   "main": "src/claWrapper.js",
