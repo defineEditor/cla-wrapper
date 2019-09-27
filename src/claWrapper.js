@@ -100,12 +100,12 @@ class BasicFunctions {
      */
 
     /**
-     * Load object from the CDISC Library
+     * Get raw API response
      *
      * @param {String} [href] CDISC Library API endpoint
-     * @returns {boolean} Rerutns true in the object was successfully loaded, false otherwise
+     * @returns {Object|undefined} Rerutns an JSON response if the request was successfull, otherwise returns undefined
      */
-    async load (href) {
+    async getRawResponse (href) {
         let link = href;
         if (href === undefined && this.href !== undefined) {
             link = this.href;
@@ -113,13 +113,24 @@ class BasicFunctions {
         if (this.coreObject && link) {
             let response = await this.coreObject.apiRequest(link);
             if (typeof response === 'object') {
-                this.parseResponse(response);
-                return true;
-            } else {
-                return false;
+                return response;
             }
-        } else {
+        }
+    }
+
+    /**
+     * Load object from the CDISC Library
+     *
+     * @param {String} [href] CDISC Library API endpoint
+     * @returns {boolean} Rerutns true in the object was successfully loaded, false otherwise
+     */
+    async load (href) {
+        let response = await this.getRawResponse(href);
+        if (response === undefined) {
             return false;
+        } else {
+            this.parseResponse(response);
+            return true;
         }
     }
 }
@@ -185,9 +196,37 @@ class CdiscLibrary {
     }
 
     /**
+     * Get a list of product group names
+     *
+     * @returns {Array} Array of product groups
+     */
+    async getProductGroupList () {
+        let result = [];
+        let pcList = await this.getProductClassList();
+        pcList.forEach(pcId => {
+            result = result.concat(this.productClasses[pcId].getProductGroupList());
+        });
+        return result;
+    }
+
+    /**
+     * Get a list of product names
+     *
+     * @returns {Array} List of product names (IDs)
+     */
+    async getProductList () {
+        let result = [];
+        let pcList = await this.getProductClassList();
+        pcList.forEach(pcId => {
+            result = result.concat(this.productClasses[pcId].getProductList());
+        });
+        return result;
+    }
+
+    /**
      * Get an object with product by name or alias
      *
-     * @param alias Product alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param alias {String} Product alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
      * @returns {Object} Product
      */
     async getFullProduct (alias) {
@@ -222,8 +261,8 @@ class CdiscLibrary {
      * Get a dataset/dataStructure for a specific product
      *
      * @param name {String} Dataset name
-     * @param options {GetItemGroupOptions}
      * @param productAlias {String} Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param options {GetItemGroupOptions}
      * @returns {Object} Dataset
      */
     async getItemGroup (name, productAlias, options) {
@@ -401,11 +440,25 @@ class ProductClass extends BasicFunctions {
     }
 
     /**
+     * Get a list of product names
+     *
+     * @returns {Array} List of product names (IDs)
+     */
+    getProductList () {
+        let result = [];
+        let pgList = this.getProductGroupList();
+        pgList.forEach(pgId => {
+            result = result.concat(this.getProductGroups()[pgId].getProductList());
+        });
+        return result;
+    }
+
+    /**
      * Get a dataset/dataStructure for a specific product
      *
      * @param name {String} Dataset name
-     * @param options {GetItemGroupOptions}
      * @param productAlias {String} Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param options {GetItemGroupOptions}
      * @returns {Object} Dataset
      */
     async getItemGroup (name, productAlias, options) {
@@ -523,7 +576,7 @@ class ProductGroup extends BasicFunctions {
     /**
      * Get an object with product by name
      *
-     * @param name {String} Product name alias
+     * @param alias {String} Product name alias
      * @returns {Object} Product
      */
     async getFullProduct (alias) {
@@ -543,8 +596,8 @@ class ProductGroup extends BasicFunctions {
      * Get a dataset/dataStructure for a specific product
      *
      * @param name {String} Dataset name
-     * @param options {GetItemGroupOptions}
      * @param productAlias {String} Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param options {GetItemGroupOptions}
      * @returns {Object} Dataset
      */
     async getItemGroup (name, productAlias, options) {
@@ -1360,6 +1413,60 @@ class Domain extends ItemGroup {
     }
 }
 
+class CodeList extends BasicFunctions {
+    /**
+     * CodeList class
+     * @extends BasicFunctions
+     */
+    constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject } = {}) {
+        super();
+        this.conceptId = conceptId;
+        this.name = name;
+        this.extensible = extensible;
+        this.submissionValue = submissionValue;
+        this.definition = definition;
+        this.preferredTerm = preferredTerm;
+        this.synonyms = synonyms;
+        this.terms = terms;
+        this.href = href;
+        this.coreObject = coreObject;
+    }
+
+    /**
+     * Parse API response to codelist
+     *
+     * @param clRaw Raw CDISC API response
+     */
+    parseResponse (clRaw) {
+        this.conceptId = clRaw.conceptId;
+        this.name = clRaw.name;
+        if (clRaw.extensible === 'true') {
+            this.extensible = true;
+        } else if (clRaw.extensible === 'false') {
+            this.extensible = false;
+        }
+        this.submissionValue = clRaw.submissionValue;
+        this.definition = clRaw.definition;
+        this.preferredTerm = clRaw.preferredTerm;
+        this.synonyms = clRaw.synonyms;
+        this.terms = clRaw.terms;
+    }
+
+    /**
+     * Get codelist terms in a specific format
+     *
+     * @param format {String} Specifies the output format. Possible values: json, csv.
+     * @returns {String} Formatted codeList terms.
+     */
+    getFormattedTerms (format = 'json') {
+        if (['json', 'csv'].includes(format)) {
+            convertToFormat(this.terms, format);
+        } else {
+            return this.terms;
+        }
+    }
+}
+
 class Item extends BasicFunctions {
     /**
      * Item class
@@ -1398,10 +1505,23 @@ class Item extends BasicFunctions {
         this.label = itemRaw.label;
         this.simpleDatatype = itemRaw.simpleDatatype;
         if (itemRaw.hasOwnProperty('_links')) {
-            if (itemRaw._links.codelist && itemRaw._links.codelist.href) {
-                this.codelistHref = itemRaw._links.codelist.href;
-                this.codelist = itemRaw._links.codelist.href.replace(/.*\/(\S+)/, '$1');
+            if (itemRaw._links.codelist && itemRaw._links.codelist[0].href) {
+                this.codelistHref = itemRaw._links.codelist[0].href;
+                this.codelist = itemRaw._links.codelist[0].href.replace(/.*\/(\S+)/, '$1');
             }
+        }
+    }
+
+    /**
+     * Get a Codelist object corresponding to the codelist used by the item
+     *
+     * @returns {Object|undefined} Instance of the CodeList class if item has a codelist.
+     */
+    async getCodeList () {
+        if (this.codelistHref) {
+            let codeList = new CodeList({ href: this.codelistHref, coreObject: this.coreObject });
+            await codeList.load();
+            return codeList;
         }
     }
 }
@@ -1467,60 +1587,6 @@ class Field extends Item {
             if (fRaw._links.sdtmigDatasetMappingTargets && fRaw._links.sdtmigDatasetMappingTargets.href) {
                 this.sdtmigDatasetMappingTargetsHref = fRaw._links.sdtmigDatasetMappingTargets.href;
             }
-        }
-    }
-}
-
-class CodeList extends BasicFunctions {
-    /**
-     * CodeList class
-     * @extends BasicFunctions
-     */
-    constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject } = {}) {
-        super();
-        this.conceptId = conceptId;
-        this.name = name;
-        this.extensible = extensible;
-        this.submissionValue = submissionValue;
-        this.definition = definition;
-        this.preferredTerm = preferredTerm;
-        this.synonyms = synonyms;
-        this.terms = terms;
-        this.href = href;
-        this.coreObject = coreObject;
-    }
-
-    /**
-     * Parse API response to codelist
-     *
-     * @param clRaw Raw CDISC API response
-     */
-    parseResponse (clRaw) {
-        this.conceptId = clRaw.conceptId;
-        this.name = clRaw.name;
-        if (clRaw.extensible === 'true') {
-            this.extensible = true;
-        } else if (clRaw.extensible === 'false') {
-            this.extensible = false;
-        }
-        this.submissionValue = clRaw.submissionValue;
-        this.definition = clRaw.definition;
-        this.preferredTerm = clRaw.preferredTerm;
-        this.synonyms = clRaw.synonyms;
-        this.terms = clRaw.terms;
-    }
-
-    /**
-     * Get codelist terms in a specific format
-     *
-     * @param format {String} Specifies the output format. Possible values: json, csv.
-     * @returns {String} Formatted codeList terms.
-     */
-    getFormattedTerms (format = 'json') {
-        if (['json', 'csv'].includes(format)) {
-            convertToFormat(this.terms, format);
-        } else {
-            return this.terms;
         }
     }
 }
