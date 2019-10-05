@@ -73,6 +73,12 @@ class CoreObject {
         } else if (endpoint === '/mdr/sdtmig/3-3/datasets') {
             let data = await readFile(path.join(path.resolve(), '/data/sdtmig3-3.datasets.json'), 'utf8');
             return JSON.parse(data);
+        } else if (endpoint === '/mdr/ct/packages/adamct-2018-12-01') {
+            let data = await readFile(path.join(path.resolve(), '/data/ct.packages.adamct-2018-12-21.json'), 'utf8');
+            return JSON.parse(data);
+        } else if (endpoint === '/mdr/ct/packages/adamct-2018-12-21/codelists') {
+            let data = await readFile(path.join(path.resolve(), '/data/ct.packages.adamct-2018-12-21.codelists.json'), 'utf8');
+            return JSON.parse(data);
         } else if (endpoint === '/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID') {
             let data = await readFile(path.join(path.resolve(), '/data/adamig-1-1.adsl.usubjid.json'), 'utf8');
             return JSON.parse(data);
@@ -102,8 +108,8 @@ class BasicFunctions {
     /**
      * Get raw API response
      *
-     * @param {String} [href] CDISC Library API endpoint
-     * @returns {Object|undefined} Rerutns an JSON response if the request was successfull, otherwise returns undefined
+     * @param {String} [href] CDISC Library API endpoint. If not specified, href attribute of the object is used.
+     * @returns {Object|undefined} Returns an JSON response if the request was successfull, otherwise returns undefined
      */
     async getRawResponse (href) {
         let link = href;
@@ -121,8 +127,8 @@ class BasicFunctions {
     /**
      * Load object from the CDISC Library
      *
-     * @param {String} [href] CDISC Library API endpoint
-     * @returns {boolean} Rerutns true in the object was successfully loaded, false otherwise
+     * @param {String} [href] CDISC Library API endpoint. If not specified, href attribute of the object is used.
+     * @returns {boolean} Returns true in the object was successfully loaded, false otherwise
      */
     async load (href) {
         let response = await this.getRawResponse(href);
@@ -350,7 +356,7 @@ class CdiscLibrary {
      * @param format='char' {String} Output format. Possible values: char, num
      * @returns {String|Integer} Traffic used in a human-readable format or number of bytes
      */
-    getTraffic (type = 'all', format = 'char') {
+    getTrafficStats (type = 'all', format = 'char') {
         const byteUnits = [' kB', ' MB', ' GB', ' TB', 'PB', 'EB', 'ZB', 'YB'];
         let traffic = 0;
 
@@ -554,7 +560,7 @@ class ProductGroup extends BasicFunctions {
      * Get a product name by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
      *
      * @param name {String} Product name alias
-     * @returns {?String} Product name
+     * @returns {String|undefined} Product name
      */
     getProductNameByAlias (alias) {
         let productName;
@@ -750,6 +756,23 @@ class Product extends BasicFunctions {
                 dataClasses[dataClass.id] = dataClass;
             });
             this.dataClasses = dataClasses;
+        }
+        if (pRaw.hasOwnProperty('codelists')) {
+            let codelists = {};
+            pRaw.classes.forEach(codeListRaw => {
+                let href;
+                if (codeListRaw['_links'] && codeListRaw['_links'].self) {
+                    href = codeListRaw['_links'].self.href;
+                }
+                let codeList = new CodeList({
+                    name: codeListRaw.name,
+                    href,
+                    coreObject: this.coreObject
+                });
+                codeList.parseResponse(codeListRaw);
+                codelists[codeList.conceptId] = codeList;
+            });
+            this.codelists = codelists;
         }
     }
 
@@ -957,6 +980,85 @@ class Product extends BasicFunctions {
             });
         }
         return result;
+    }
+
+    /**
+     * Get a list of codelists in terminology
+     *
+     * @param {Object} [options] Output options
+     * @param {Boolean} options.short Keep only preferred term and ID in the result
+     * @param {String} options.format Specifies the output format. Possible values: json, csv.
+     * @returns {Array} Array of codelist IDs and titles.
+     */
+    async getCodeListList (options = {}) {
+        let result = [];
+        if (!this.codelists) {
+            let codeListsHref = `${this.href}/codelists`;
+            let clRaw = await this.coreObject.apiRequest(codeListsHref);
+            if (clRaw.hasOwnProperty('_links') && clRaw._links.hasOwnProperty('codelists')) {
+                let codelists = {};
+                clRaw._links.codelists.forEach(codeListRaw => {
+                    let codeList = new CodeList({
+                        href: codeListRaw.href,
+                        preferredTerm: codeListRaw.title,
+                        coreObject: this.coreObject
+                    });
+                    codelists[codeList.conceptId] = codeList;
+                });
+                this.codelists = codelists;
+            }
+        }
+        Object.values(this.codelists).forEach(codeList => {
+            if (options.short) {
+                result.push({ conceptId: codeList.conceptId, preferredTerm: codeList.preferredTerm });
+            } else {
+                result.push({ conceptId: codeList.conceptId, preferredTerm: codeList.preferredTerm, href: codeList.href });
+            }
+        });
+        if (options.format) {
+            return convertToFormat(result, options.format);
+        } else {
+            return result;
+        }
+    }
+
+    /**
+     * Get a codelists
+     *
+     * @param {String} codeListId Concept ID of the codelist
+     * @param {Object} [options] Output options
+     * @param {String} options.format Specifies the output format. Possible values: json, csv.
+     * @returns {Object} Codelist
+     */
+    async getCodeList (codeListId, options = {}) {
+        let ct;
+        if (this.codelists && this.codelists[codeListId]) {
+            ct = this.codelists[codeListId];
+        }
+        // If not found, try to loaded it. Even when found it is possible that the codelist is not fully loaded
+        if ((ct === undefined && !this.fullyLoaded) || (ct && ct.terms.length < 1)) {
+            let href = this.href + '/codelists/' + codeListId;
+            let codeList = new CodeList({
+                href,
+                coreObject: this.coreObject
+            });
+            let loaded = await codeList.load();
+            if (loaded) {
+                ct = codeList;
+                if (!this.codelists) {
+                    this.codelists = {};
+                }
+                this.codelists[ct.conceptId] = ct;
+            }
+        }
+
+        if (ct) {
+            if (options.format) {
+                return ct.getFormattedTerms(options.format);
+            } else {
+                return ct;
+            }
+        }
     }
 }
 
@@ -1307,8 +1409,23 @@ class ItemGroup extends BasicFunctions {
     getItems () {
         let result = {};
         if (this[this.itemType]) {
-            Object.values(this[this.itemType]).forEach(variable => {
-                result[variable.id] = variable;
+            Object.values(this[this.itemType]).forEach(item => {
+                result[item.id] = item;
+            });
+        }
+        return result;
+    }
+
+    /**
+     * Get an array with the list of all items
+     *
+     * @returns {Array} An array with item names
+     */
+    getNameList () {
+        let result = [];
+        if (this[this.itemType]) {
+            Object.values(this[this.itemType]).forEach(item => {
+                result.push(item.name);
             });
         }
         return result;
@@ -1420,7 +1537,11 @@ class CodeList extends BasicFunctions {
      */
     constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject } = {}) {
         super();
-        this.conceptId = conceptId;
+        if (conceptId) {
+            this.conceptId = conceptId;
+        } else if (href) {
+            this.conceptId = href.replace(/.*\/(.*)$/, '$1');
+        }
         this.name = name;
         this.extensible = extensible;
         this.submissionValue = submissionValue;
@@ -1460,7 +1581,7 @@ class CodeList extends BasicFunctions {
      */
     getFormattedTerms (format = 'json') {
         if (['json', 'csv'].includes(format)) {
-            convertToFormat(this.terms, format);
+            return convertToFormat(this.terms, format);
         } else {
             return this.terms;
         }
@@ -1515,13 +1636,34 @@ class Item extends BasicFunctions {
     /**
      * Get a Codelist object corresponding to the codelist used by the item
      *
+     * @param ctVer {String} Version of the CT, for example 2015-06-26. If blank, the last (not necessarily the latest) version will be returned.
      * @returns {Object|undefined} Instance of the CodeList class if item has a codelist.
      */
-    async getCodeList () {
+    async getCodeList (ctVer) {
+        // TODO
         if (this.codelistHref) {
-            let codeList = new CodeList({ href: this.codelistHref, coreObject: this.coreObject });
-            await codeList.load();
-            return codeList;
+            let rootCodeListRaw = await this.getRawResponse(this.codelistHref);
+            if (rootCodeListRaw === undefined) {
+                return;
+            }
+            if (rootCodeListRaw._links && rootCodeListRaw._links.versions) {
+                let href;
+                if (ctVer) {
+                    rootCodeListRaw._links.versions.some(version => {
+                        if (version.href.includes(ctVer)) {
+                            href = version.href;
+                            return true;
+                        }
+                    });
+                } else {
+                    href = rootCodeListRaw._links.versions[rootCodeListRaw._links.versions.length - 1].href;
+                }
+                if (href) {
+                    let codelist = new CodeList({ href, coreObject: this.coreObject });
+                    await codelist.load();
+                    return codelist;
+                }
+            }
         }
     }
 }

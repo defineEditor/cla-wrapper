@@ -1,0 +1,17 @@
+{
+    "tags": {
+        "allowUnknownTags": false
+    },
+    "source": {
+        "include": "src/claWrapper.js"
+    },
+    "opts": {
+        "template": "node_modules/docdash",
+        "encoding": "utf8",
+        "destination": "docs/"
+    },
+    "docdash": {
+        "search": true,
+        "collapse": true
+    }
+}

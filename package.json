@@ -1,25 +1,31 @@
 {
-  "name": "clawrapper",
-  "version": "0.1.0",
-  "description": "CDISC Library API wrapper",
-  "main": "src/claWrapper.js",
-  "repository": "https://github.com/defineEditor/claWrapper",
-  "author": "Dmitry Kolosov",
-  "contributors": [
-      {
-          "name": "Dmitry Kolosov",
-          "email": "dmitry.m.kolosov@gmail.com",
-          "url": ""
-      },
-      {
-          "name": "Sergei Krivtcov",
-          "email": "1000eyed@gmail.com",
-          "url": ""
-      }
-  ],
-  "license": "MIT",
-  "dependencies": {
-    "json2csv": "^4.5.2",
-    "request": "^2.88.0"
-  }
+    "name": "cla-wrapper",
+    "version": "0.1.0",
+    "description": "CDISC Library API wrapper",
+    "main": "src/claWrapper.js",
+    "scripts": {
+        "docs": "jsdoc -c jsdoc.json"
+    },
+    "repository": "https://github.com/defineEditor/claWrapper",
+    "author": "Dmitry Kolosov",
+    "contributors": [
+        {
+            "name": "Dmitry Kolosov",
+            "email": "dmitry.m.kolosov@gmail.com",
+            "url": ""
+        },
+        {
+            "name": "Sergei Krivtcov",
+            "email": "1000eyed@gmail.com",
+            "url": ""
+        }
+    ],
+    "license": "MIT",
+    "dependencies": {
+        "json2csv": "^4.5.2",
+        "request": "^2.88.0"
+    },
+    "devDependencies": {
+        "docdash": "^1.1.1"
+    }
 }
