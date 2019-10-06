@@ -22,10 +22,10 @@ const defaultGetItemGroupOptions = {};
 /**
  * GetItemGroupsOptions
  * @typedef {Object} GetItemGroupsOptions
- * @property {Boolean} short - Specifies that only a short description of itemGroups is required
+ * @property {Boolean} type - Specifies whether a short or full description of itemGroups is required. Possible values: short, long (default).
  * @property {String} format - Specifies the output format. Possible values: json, csv.
  */
-const defaultGetItemGroupsOptions = { short: 'false' };
+const defaultGetItemGroupsOptions = { type: 'long' };
 
 class CoreObject {
     /**
@@ -48,46 +48,52 @@ class CoreObject {
     /**
      * Make an API request
      *
-     * @param endpoint CDISC Library API endpoint
+     * @param {String} endpoint CDISC Library API endpoint
+     * @param {Object} [headers] Optional additional headers for the request
+     * @param {Boolean} [returnRaw] If true, a raw response is returned
      * @returns {Object|Number} API response, if API request failed, a status code is returned
      */
-    async apiRequest (endpoint) {
+    async apiRequest (endpoint, headers, returnRaw) {
+        let basePath = '/home/nogi/nogi/cla-wrapper/';
         if (endpoint === '/mdr/products') {
-            let data = await readFile(path.join(path.resolve(), '/data/mdrproducts.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/mdrproducts.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/adam/adamig-1-1') {
-            let data = await readFile(path.join(path.resolve(), '/data/adamig-1-1.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/adamig-1-1.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/sdtmig/3-3') {
-            let data = await readFile(path.join(path.resolve(), '/data/sdtmig-3-3.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/sdtmig-3-3.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/cdash/1-0') {
-            let data = await readFile(path.join(path.resolve(), '/data/cdash1-0.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/cdash1-0.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/cdashig/2-0') {
-            let data = await readFile(path.join(path.resolve(), '/data/cdashig2-0.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/cdashig2-0.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/sdtm/1-7') {
-            let data = await readFile(path.join(path.resolve(), '/data/sdtm-1-7.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/sdtm-1-7.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/sdtmig/3-3/datasets') {
-            let data = await readFile(path.join(path.resolve(), '/data/sdtmig3-3.datasets.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/sdtmig3-3.datasets.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/ct/packages/adamct-2018-12-01') {
-            let data = await readFile(path.join(path.resolve(), '/data/ct.packages.adamct-2018-12-21.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/ct.packages.adamct-2018-12-21.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/ct/packages/adamct-2018-12-21/codelists') {
-            let data = await readFile(path.join(path.resolve(), '/data/ct.packages.adamct-2018-12-21.codelists.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/ct.packages.adamct-2018-12-21.codelists.json'), 'utf8');
             return JSON.parse(data);
         } else if (endpoint === '/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID') {
-            let data = await readFile(path.join(path.resolve(), '/data/adamig-1-1.adsl.usubjid.json'), 'utf8');
+            let data = await readFile(path.join(basePath, '/data/adamig-1-1.adsl.usubjid.json'), 'utf8');
             return JSON.parse(data);
         } else {
-            let response = await apiRequest({ username: this.username, password: this.password, url: this.baseUrl + endpoint });
+            let response = await apiRequest({ username: this.username, password: this.password, url: this.baseUrl + endpoint, headers });
             // Count traffic
             if (response.connection) {
                 this.traffic.incoming += response.connection.bytesRead;
                 this.traffic.outgoing += response.connection.bytesWritten;
+            }
+            if (returnRaw) {
+                return response;
             }
             if (response.statusCode === 200) {
                 return JSON.parse(response.body);
@@ -138,6 +144,22 @@ class BasicFunctions {
             this.parseResponse(response);
             return true;
         }
+    }
+
+    /**
+     * Convert class to simple object, without methods or technical elements
+     *
+     * @returns {Object} A new object
+     */
+    toSimpleObject () {
+        let result = {};
+        for (let prop in this) {
+            // Remove all techical or inherited properties
+            if (prop !== 'coreObject' && this.hasOwnProperty(prop)) {
+                result[prop] = this[prop];
+            }
+        }
+        return result;
     }
 }
 
@@ -218,47 +240,38 @@ class CdiscLibrary {
     /**
      * Get a list of product names
      *
+     * @param {String} [format] Specifies the output format. Possible values: json, csv.
      * @returns {Array} List of product names (IDs)
      */
-    async getProductList () {
+    async getProductList (format = 'json') {
         let result = [];
         let pcList = await this.getProductClassList();
         pcList.forEach(pcId => {
             result = result.concat(this.productClasses[pcId].getProductList());
         });
-        return result;
+        return convertToFormat(result, format);
     }
 
     /**
-     * Get an object with product by name or alias
+     * Get an object with a fully loaded product by name or alias
      *
      * @param alias {String} Product alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param [loadBasicInfo] {Boolean} If true, will load only basic product details.
      * @returns {Object} Product
      */
-    async getFullProduct (alias) {
+    async getFullProduct (alias, loadBasicInfo) {
         let result;
         let pcs = await this.getProductClasses();
         // Get IDs
-        let productFullId = {};
-        Object.keys(pcs).some(pcId => {
-            let pgs = pcs[pcId].getProductGroups();
-            Object.keys(pgs).some(pgId => {
-                // Find product by name
-                let pId = pgs[pgId].getProductNameByAlias(alias);
-                if (pId !== undefined) {
-                    productFullId = {
-                        productClassId: pcId,
-                        productGroupId: pgId,
-                        productId: pId,
-                    };
-                    return true;
-                }
-            });
-        });
-        if (productFullId.productClassId) {
+        let productFullId = await this.getProductIdByAlias(alias);
+        if (productFullId) {
             let pgs = pcs[productFullId.productClassId].productGroups;
             let pg = pgs[productFullId.productGroupId];
-            result = await pg.getFullProduct(productFullId.productId);
+            if (loadBasicInfo === true) {
+                result = pg.products[productFullId.productId];
+            } else {
+                result = await pg.getFullProduct(productFullId.productId);
+            }
         }
         return result;
     }
@@ -311,17 +324,15 @@ class CdiscLibrary {
     }
 
     /**
-     * Get an object with all datasets/domains/dataStructure
-     * <br> This method does not update the main object
+     * Get an object with all datasets/domains/dataStructure/codelists
      *
      * @param options {Object} Detail options
      * <br> type='short' {String} Short/extended list of product attributes. Possible values: short, long
-     * <br> format='object' {String} Output format. Possible values: json, csv, object
+     * <br> format='object' {String} Output format. Possible values: json, csv
      * @returns {Object|String} Product list with details
      */
-    async getProductDetails ({ type = 'short', format = 'object' } = {}) {
+    async getProductDetails ({ type = 'short', format = 'json' } = {}) {
         let result = [];
-        await this.getProductClasses();
         let productClasses = await this.getProductClasses();
         Object.values(productClasses).forEach(pc => {
             Object.values(pc.getProductGroups()).forEach(pg => {
@@ -342,11 +353,7 @@ class CdiscLibrary {
                 });
             });
         });
-        if (format === 'object') {
-            return result;
-        } else {
-            return convertToFormat(result, format);
-        }
+        return convertToFormat(result, format);
     }
 
     /**
@@ -383,6 +390,28 @@ class CdiscLibrary {
                 return Math.max(traffic, 0.1).toFixed(1) + byteUnits[i];
             }
         }
+    }
+
+    /**
+     * Get a product, product group, product class IDs by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
+     *
+     * @param name {String} Product name alias
+     * @returns {Object|undefined} Product, product group, product class IDs
+     */
+    async getProductIdByAlias (alias) {
+        let result;
+        let productClasses = this.productClasses;
+        if (!productClasses) {
+            productClasses = await this.getProductClasses();
+        }
+        Object.keys(productClasses).some(pcId => {
+            let res = productClasses[pcId].getProductIdByAlias(alias);
+            if (res) {
+                result = { productClassId: pcId, ...res };
+                return true;
+            }
+        });
+        return result;
     }
 }
 
@@ -448,15 +477,16 @@ class ProductClass extends BasicFunctions {
     /**
      * Get a list of product names
      *
+     * @param {String} [format] Specifies the output format. Possible values: json, csv.
      * @returns {Array} List of product names (IDs)
      */
-    getProductList () {
+    getProductList (format = 'json') {
         let result = [];
         let pgList = this.getProductGroupList();
         pgList.forEach(pgId => {
             result = result.concat(this.getProductGroups()[pgId].getProductList());
         });
-        return result;
+        return convertToFormat(result, format);
     }
 
     /**
@@ -497,6 +527,25 @@ class ProductClass extends BasicFunctions {
                 break;
             }
         }
+        return result;
+    }
+
+    /**
+     * Get a product and product group IDs by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
+     *
+     * @param name {String} Product name alias
+     * @returns {Object|undefined} Product and product group IDs
+     */
+    getProductIdByAlias (alias) {
+        let result;
+        let productGroups = this.getProductGroups();
+        Object.keys(productGroups).some(pgId => {
+            let res = productGroups[pgId].getProductIdByAlias(alias);
+            if (res !== undefined) {
+                result = { productGroupId: pgId, ...res };
+                return true;
+            }
+        });
         return result;
     }
 }
@@ -546,54 +595,66 @@ class ProductGroup extends BasicFunctions {
     /**
      * Get a list of product names
      *
+     * @param [format] {String} Specifies the output format. Possible values: json, csv.
      * @returns {Array} List of product names (IDs)
      */
-    getProductList () {
+    getProductList (format = 'json') {
+        let result;
         if (this.products) {
-            return Object.keys(this.getProducts()).map(pId => this.products[pId].id);
+            result = Object.keys(this.getProducts()).map(pId => this.products[pId].id);
         } else {
-            return [];
+            result = [];
+        }
+        return convertToFormat(result, format);
+    }
+
+    /**
+     * Get a product ID by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
+     *
+     * @param name {String} Product name alias
+     * @returns {Object|undefined} An object with product ID
+     */
+    getProductIdByAlias (alias) {
+        let productId;
+        if (this.products) {
+            let productList = this.getProductList();
+            // Try exact match first, then make it less strict
+            productId = productList.find(id => (alias.toLowerCase() === id.toLowerCase()));
+            // Remove - and .
+            if (!productId) {
+                productId = productList.find(id => (alias.toLowerCase().replace(/[-.]/g, '') === id.toLowerCase().replace(/[-.]/g, '')));
+            }
+            // Search by substring
+            if (!productId) {
+                productId = productList.find(id => (id.toLowerCase().replace(/[-.]/g, '')).includes(alias.toLowerCase().replace(/[-.]/g, '')));
+            }
+        }
+        if (productId) {
+            return { productId };
         }
     }
 
     /**
-     * Get a product name by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
-     *
-     * @param name {String} Product name alias
-     * @returns {String|undefined} Product name
-     */
-    getProductNameByAlias (alias) {
-        let productName;
-        if (this.products) {
-            let productList = this.getProductList();
-            // Try exact match first, then make it less strict
-            productName = productList.find(id => (alias.toLowerCase() === id.toLowerCase()));
-            // Remove - and .
-            if (!productName) {
-                productName = productList.find(id => (alias.toLowerCase().replace(/[-.]/g, '') === id.toLowerCase().replace(/[-.]/g, '')));
-            }
-            // Search by substring
-            if (!productName) {
-                productName = productList.find(id => (id.toLowerCase().replace(/[-.]/g, '')).includes(alias.toLowerCase().replace(/[-.]/g, '')));
-            }
-        }
-        return productName;
-    }
-    /**
-     * Get an object with product by name
+     * Get an object with a fully loaded product by name or alias
      *
      * @param alias {String} Product name alias
+     * @param [loadBasicInfo] {Boolean} If true, will load only basic product details.
      * @returns {Object} Product
      */
-    async getFullProduct (alias) {
+    async getFullProduct (alias, loadBasicInfo) {
         let product;
-        let id = this.getProductNameByAlias(alias);
-        if (id !== undefined) {
-            let productRaw = await this.coreObject.apiRequest(this.products[id].href);
-            product = new Product({ ...this.products[id] });
-            product.parseResponse(productRaw);
-            product.fullyLoaded = true;
-            this.products[id] = product;
+        let idObj = this.getProductIdByAlias(alias);
+        if (idObj !== undefined) {
+            let id = idObj.productId;
+            if (loadBasicInfo === true) {
+                return this.products[id];
+            } else {
+                let productRaw = await this.coreObject.apiRequest(this.products[id].href);
+                product = new Product({ ...this.products[id] });
+                product.parseResponse(productRaw);
+                product.fullyLoaded = true;
+                this.products[id] = product;
+            }
         }
         return product;
     }
@@ -608,9 +669,9 @@ class ProductGroup extends BasicFunctions {
      */
     async getItemGroup (name, productAlias, options) {
         let defaultedOptions = { ...defaultGetItemGroupOptions, ...options };
-        let id = this.getProductNameByAlias(productAlias, defaultedOptions);
-        if (id) {
-            return this.products[id].getItemGroup(name, options);
+        let idObj = this.getProductIdByAlias(productAlias);
+        if (idObj) {
+            return this.products[idObj.productId].getItemGroup(name, defaultedOptions);
         }
     }
 
@@ -625,9 +686,10 @@ class ProductGroup extends BasicFunctions {
      */
     async getItemGroups (productAlias, options) {
         let defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
-        let id = this.getProductNameByAlias(productAlias);
-        if (id) {
-            if (this.products[id].fullyLoaded !== true && defaultedOptions.short !== true) {
+        let idObj = this.getProductIdByAlias(productAlias);
+        if (idObj) {
+            let id = idObj.productId;
+            if (this.products[id].fullyLoaded !== true && defaultedOptions.type !== 'short') {
                 // If the product is not fully loaded
                 await this.getFullProduct(id);
                 return this.products[id].getItemGroups(defaultedOptions);
@@ -690,6 +752,8 @@ class Product extends BasicFunctions {
         }
         if (datasetType) {
             this.datasetType = datasetType;
+        } else if (this.type === 'Terminology') {
+            this.datasetType = 'codelists';
         } else {
             if (this.model === 'ADaM') {
                 this.datasetType = 'dataStructures';
@@ -781,7 +845,24 @@ class Product extends BasicFunctions {
      *
      * @returns {Object} An object with variables
      */
-    getItems () {
+    async getItems () {
+        if (this.fullyLoaded === true) {
+            return this.getCurrentItems();
+        } else {
+            // Load the full product
+            let productRaw = await this.coreObject.apiRequest(this.href);
+            this.parseResponse(productRaw);
+            this.fullyLoaded = true;
+            return this.getCurrentItems();
+        }
+    }
+
+    /**
+     * Get an object with all variables/fields for that product which are currently loaded
+     *
+     * @returns {Object} An object with variables
+     */
+    getCurrentItems () {
         let sourceObject;
         let result = {};
         if (this.dataStructures) {
@@ -804,14 +885,14 @@ class Product extends BasicFunctions {
      * @param options {GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
-     * This approach does not load the full product and loads only the dataset information from the CDISC Library.
+     * This method does not load the full product and loads only the dataset information from the CDISC Library.
      */
     async getItemGroups (options) {
         let defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
         let result = {};
-        if (defaultedOptions.short !== true) {
+        if (defaultedOptions.type !== 'short') {
             if (this.fullyLoaded === true) {
-                result = this.getLoadedItemGroups();
+                result = this.getCurrentItemGroups();
             } else {
                 // Load the full product
                 let productRaw = await this.coreObject.apiRequest(this.href);
@@ -820,7 +901,7 @@ class Product extends BasicFunctions {
             }
         } else {
             if (this.fullyLoaded === true) {
-                let itemGroups = this.getLoadedItemGroups();
+                let itemGroups = this.getCurrentItemGroups();
                 Object.values(itemGroups).forEach(itemGroup => {
                     result[itemGroup.name] = { name: itemGroup.name, label: itemGroup.label };
                 });
@@ -838,12 +919,12 @@ class Product extends BasicFunctions {
         if (defaultedOptions.format === undefined) {
             return result;
         } else {
-            if (defaultedOptions.short === true) {
+            if (defaultedOptions.type === 'short') {
                 return convertToFormat(Object.values(result), defaultedOptions.format);
             } else {
                 let formatted = [];
                 Object.values(result).forEach(itemGroup => {
-                    formatted = formatted.concat(itemGroup.getFormattedItems('object', true));
+                    formatted = formatted.concat(itemGroup.getFormattedItems('json', true));
                 });
                 return convertToFormat(formatted, defaultedOptions.format);
             }
@@ -851,11 +932,11 @@ class Product extends BasicFunctions {
     }
 
     /**
-     * Get an object with all datasets/dataStructures for that product
+     * Get an object with all datasets/dataStructures for that product which are currently loaded
      *
      * @returns {Object} An object with datasets
      */
-    getLoadedItemGroups () {
+    getCurrentItemGroups () {
         let result = {};
         if (this.dataStructures) {
             return this.dataStructures;
@@ -882,10 +963,10 @@ class Product extends BasicFunctions {
         let result;
         let defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
         // Check if dataset is already present;
-        let loadedDatasets = this.getLoadedItemGroups();
+        let loadedDatasets = this.getCurrentItemGroups();
         let datasetId;
         Object.values(loadedDatasets).some(dataset => {
-            if (dataset.name === name) {
+            if (dataset.name.toUpperCase() === name.toUpperCase()) {
                 datasetId = dataset.id;
                 return true;
             }
@@ -953,9 +1034,9 @@ class Product extends BasicFunctions {
      * Find all matching variables/fields. For example TRxxPGy matches TR01PG12.
      *
      * @param name {String} Variable/Field name
-     * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * @param [options] {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
+     * @param options.mode {String}  Match only full names, partial - match partial names
+     * @param options.firstOnly {Boolean}  If true, returns only the first matching item, false - returns all matching items
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -985,9 +1066,9 @@ class Product extends BasicFunctions {
     /**
      * Get a list of codelists in terminology
      *
-     * @param {Object} [options] Output options
-     * @param {Boolean} options.short Keep only preferred term and ID in the result
-     * @param {String} options.format Specifies the output format. Possible values: json, csv.
+     * @param [options] {Object} Output options
+     * @param options.short {Boolean} Keep only preferred term and ID in the result
+     * @param options.format {String} Specifies the output format. Possible values: json, csv.
      * @returns {Array} Array of codelist IDs and titles.
      */
     async getCodeListList (options = {}) {
@@ -1015,11 +1096,7 @@ class Product extends BasicFunctions {
                 result.push({ conceptId: codeList.conceptId, preferredTerm: codeList.preferredTerm, href: codeList.href });
             }
         });
-        if (options.format) {
-            return convertToFormat(result, options.format);
-        } else {
-            return result;
-        }
+        return convertToFormat(result, options.format);
     }
 
     /**
@@ -1166,13 +1243,9 @@ class DataStructure extends BasicFunctions {
         let result = [];
         if (this.analysisVariableSets) {
             Object.values(this.analysisVariableSets).forEach(analysisVariableSet => {
-                result = result.concat(analysisVariableSet.getFormattedItems('object', addItemGroupId, { dataStructure: this.id }));
+                result = result.concat(analysisVariableSet.getFormattedItems('json', addItemGroupId, { dataStructure: this.id }));
             });
-            if (format === 'object') {
-                return result;
-            } else {
-                return convertToFormat(result, format);
-            }
+            return convertToFormat(result, format);
         }
     }
 }
@@ -1489,11 +1562,7 @@ class ItemGroup extends BasicFunctions {
             }
             result.push(updatedItem);
         });
-        if (format === 'object') {
-            return result;
-        } else {
-            return convertToFormat(result, format);
-        }
+        return convertToFormat(result, format);
     }
 }
 
@@ -1580,11 +1649,7 @@ class CodeList extends BasicFunctions {
      * @returns {String} Formatted codeList terms.
      */
     getFormattedTerms (format = 'json') {
-        if (['json', 'csv'].includes(format)) {
-            return convertToFormat(this.terms, format);
-        } else {
-            return this.terms;
-        }
+        return convertToFormat(this.terms, format);
     }
 }
 
@@ -1626,7 +1691,7 @@ class Item extends BasicFunctions {
         this.label = itemRaw.label;
         this.simpleDatatype = itemRaw.simpleDatatype;
         if (itemRaw.hasOwnProperty('_links')) {
-            if (itemRaw._links.codelist && itemRaw._links.codelist[0].href) {
+            if (itemRaw._links.codelist && itemRaw._links.codelist.length > 0 && itemRaw._links.codelist[0].href) {
                 this.codelistHref = itemRaw._links.codelist[0].href;
                 this.codelist = itemRaw._links.codelist[0].href.replace(/.*\/(\S+)/, '$1');
             }
@@ -1640,7 +1705,6 @@ class Item extends BasicFunctions {
      * @returns {Object|undefined} Instance of the CodeList class if item has a codelist.
      */
     async getCodeList (ctVer) {
-        // TODO
         if (this.codelistHref) {
             let rootCodeListRaw = await this.getRawResponse(this.codelistHref);
             if (rootCodeListRaw === undefined) {
