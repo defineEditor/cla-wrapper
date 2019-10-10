@@ -1,6 +1,6 @@
 {
     "name": "cla-wrapper",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "CDISC Library API wrapper",
     "main": "src/claWrapper.js",
     "scripts": {
