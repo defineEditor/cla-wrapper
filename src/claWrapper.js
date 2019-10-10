@@ -166,6 +166,7 @@ class CdiscLibrary {
         } else {
             result.description = 'Unknown';
         }
+        return result;
     }
 
     /**
