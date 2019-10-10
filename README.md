@@ -20,7 +20,7 @@ let cl = new CdiscLibrary({username: 'login', password: 'pwd'}});
 // Get the VS dataset
 let vs = await cl.getItemGroup('VS','sdtmig33');
 ```
-See API documentation for details.
+See the wrapper [documentation](https://defineeditor.github.io/cla-wrapper/index.html) for details.
 
 ## Authors
 
