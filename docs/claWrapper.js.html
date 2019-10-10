@@ -1,4 +1,50 @@
-const apiRequest = require('./utils/apiRequest.js');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>claWrapper.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnalysisVariableSet.html">AnalysisVariableSet</a><ul class='methods'><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#getFormattedItems">getFormattedItems</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#getNameList">getNameList</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#load">load</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="AnalysisVariableSet.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="CdiscLibrary.html">CdiscLibrary</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#checkConnection">checkConnection</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getFullProduct">getFullProduct</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getItemGroup">getItemGroup</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getItemGroups">getItemGroups</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getProductClasses">getProductClasses</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getProductClassList">getProductClassList</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getProductDetails">getProductDetails</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getProductGroupList">getProductGroupList</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getProductIdByAlias">getProductIdByAlias</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getProductList">getProductList</a></li><li data-type='method' style='display: none;'><a href="CdiscLibrary.html#getTrafficStats">getTrafficStats</a></li></ul></li><li><a href="CodeList.html">CodeList</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CodeList.html#getFormattedTerms">getFormattedTerms</a></li><li data-type='method' style='display: none;'><a href="CodeList.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="CodeList.html#load">load</a></li><li data-type='method' style='display: none;'><a href="CodeList.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="CodeList.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="CoreObject.html">CoreObject</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CoreObject.html#apiRequest">apiRequest</a></li></ul></li><li><a href="DataClass.html">DataClass</a><ul class='methods'><li data-type='method' style='display: none;'><a href="DataClass.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="DataClass.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="DataClass.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="DataClass.html#load">load</a></li><li data-type='method' style='display: none;'><a href="DataClass.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="DataClass.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="Dataset.html">Dataset</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Dataset.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#getFormattedItems">getFormattedItems</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#getNameList">getNameList</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="Dataset.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="DataStructure.html">DataStructure</a><ul class='methods'><li data-type='method' style='display: none;'><a href="DataStructure.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="DataStructure.html#getFormattedItems">getFormattedItems</a></li><li data-type='method' style='display: none;'><a href="DataStructure.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="DataStructure.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="DataStructure.html#load">load</a></li><li data-type='method' style='display: none;'><a href="DataStructure.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="DataStructure.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="Domain.html">Domain</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Domain.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="Domain.html#getFormattedItems">getFormattedItems</a></li><li data-type='method' style='display: none;'><a href="Domain.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="Domain.html#getNameList">getNameList</a></li><li data-type='method' style='display: none;'><a href="Domain.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="Domain.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Domain.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="Domain.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="Field.html">Field</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Field.html#parseResponse">parseResponse</a></li></ul></li><li><a href="Item.html">Item</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Item.html#getCodeList">getCodeList</a></li><li data-type='method' style='display: none;'><a href="Item.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="Item.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Item.html#parseItemResponse">parseItemResponse</a></li><li data-type='method' style='display: none;'><a href="Item.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="ItemGroup.html">ItemGroup</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ItemGroup.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#getFormattedItems">getFormattedItems</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#getNameList">getNameList</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="ItemGroup.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="Product.html">Product</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Product.html#findMatchingItems">findMatchingItems</a></li><li data-type='method' style='display: none;'><a href="Product.html#getCodeList">getCodeList</a></li><li data-type='method' style='display: none;'><a href="Product.html#getCodeListList">getCodeListList</a></li><li data-type='method' style='display: none;'><a href="Product.html#getCurrentItemGroups">getCurrentItemGroups</a></li><li data-type='method' style='display: none;'><a href="Product.html#getCurrentItems">getCurrentItems</a></li><li data-type='method' style='display: none;'><a href="Product.html#getItemGroup">getItemGroup</a></li><li data-type='method' style='display: none;'><a href="Product.html#getItemGroups">getItemGroups</a></li><li data-type='method' style='display: none;'><a href="Product.html#getItems">getItems</a></li><li data-type='method' style='display: none;'><a href="Product.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="Product.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Product.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="Product.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="ProductClass.html">ProductClass</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ProductClass.html#getItemGroup">getItemGroup</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#getItemGroups">getItemGroups</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#getProductGroupList">getProductGroupList</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#getProductGroups">getProductGroups</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#getProductIdByAlias">getProductIdByAlias</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#getProductList">getProductList</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="ProductClass.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="ProductGroup.html">ProductGroup</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ProductGroup.html#getFullProduct">getFullProduct</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#getItemGroup">getItemGroup</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#getItemGroups">getItemGroups</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#getProductIdByAlias">getProductIdByAlias</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#getProductList">getProductList</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#getProducts">getProducts</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="ProductGroup.html#toSimpleObject">toSimpleObject</a></li></ul></li><li><a href="Variable.html">Variable</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Variable.html#getCodeList">getCodeList</a></li><li data-type='method' style='display: none;'><a href="Variable.html#getRawResponse">getRawResponse</a></li><li data-type='method' style='display: none;'><a href="Variable.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Variable.html#parseItemResponse">parseItemResponse</a></li><li data-type='method' style='display: none;'><a href="Variable.html#parseResponse">parseResponse</a></li><li data-type='method' style='display: none;'><a href="Variable.html#toSimpleObject">toSimpleObject</a></li></ul></li></ul><h3><a href="global.html">Global</a></h3>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">claWrapper.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const apiRequest = require('./utils/apiRequest.js');
 const convertToFormat = require('./utils/convertToFormat.js');
 const matchItem = require('./utils/matchItem.js');
 
@@ -90,10 +136,10 @@ class BasicFunctions {
      */
     async getRawResponse (href) {
         let link = href;
-        if (href === undefined && this.href !== undefined) {
+        if (href === undefined &amp;&amp; this.href !== undefined) {
             link = this.href;
         }
-        if (this.coreObject && link) {
+        if (this.coreObject &amp;&amp; link) {
             let response = await this.coreObject.apiRequest(link);
             if (typeof response === 'object') {
                 return response;
@@ -126,7 +172,7 @@ class BasicFunctions {
         let result = {};
         for (let prop in this) {
             // Remove all techical or inherited properties
-            if (prop !== 'coreObject' && this.hasOwnProperty(prop)) {
+            if (prop !== 'coreObject' &amp;&amp; this.hasOwnProperty(prop)) {
                 result[prop] = this[prop];
             }
         }
@@ -283,11 +329,11 @@ class CdiscLibrary {
 
     /**
      * Get an object with all datasets/domains/dataStructure
-     * <br> This method does not update the main object
+     * &lt;br> This method does not update the main object
      *
      * @param options {GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
-     * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
+     * &lt;br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This approach does not load the full product and loads only the dataset information from the CDISC Library.
      */
     async getItemGroups (productAlias, options) {
@@ -309,8 +355,8 @@ class CdiscLibrary {
      * Get an object with all datasets/domains/dataStructure/codelists
      *
      * @param options {Object} Detail options
-     * <br> type='short' {String} Short/extended list of product attributes. Possible values: short, long
-     * <br> format='object' {String} Output format. Possible values: json, csv
+     * &lt;br> type='short' {String} Short/extended list of product attributes. Possible values: short, long
+     * &lt;br> format='object' {String} Output format. Possible values: json, csv
      * @returns {Object|String} Product list with details
      */
     async getProductDetails ({ type = 'short', format = 'json' } = {}) {
@@ -493,11 +539,11 @@ class ProductClass extends BasicFunctions {
 
     /**
      * Get an object with all datasets/domains/dataStructure
-     * <br> This method does not update the main object
+     * &lt;br> This method does not update the main object
      *
      * @param options {GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
-     * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
+     * &lt;br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This approach does not load the full product and loads only the dataset information from the CDISC Library.
      */
     async getItemGroups (productAlias, options) {
@@ -659,11 +705,11 @@ class ProductGroup extends BasicFunctions {
 
     /**
      * Get an object with all datasets/domains/dataStructure
-     * <br> This method does not update the main object
+     * &lt;br> This method does not update the main object
      *
      * @param options {GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
-     * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
+     * &lt;br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This approach does not load the full product and loads only the dataset information from the CDISC Library.
      */
     async getItemGroups (productAlias, options) {
@@ -671,7 +717,7 @@ class ProductGroup extends BasicFunctions {
         let idObj = this.getProductIdByAlias(productAlias);
         if (idObj) {
             let id = idObj.productId;
-            if (this.products[id].fullyLoaded !== true && defaultedOptions.type !== 'short') {
+            if (this.products[id].fullyLoaded !== true &amp;&amp; defaultedOptions.type !== 'short') {
                 // If the product is not fully loaded
                 await this.getFullProduct(id);
                 return this.products[id].getItemGroups(defaultedOptions);
@@ -748,10 +794,10 @@ class Product extends BasicFunctions {
             }
         }
 
-        if (this.model === 'ADaM' && !this.dataStructures) {
+        if (this.model === 'ADaM' &amp;&amp; !this.dataStructures) {
             this.dataStructures = {};
         }
-        if (['SDTM', 'SEND', 'CDASH'].includes(this.model) && !this.dataClasses) {
+        if (['SDTM', 'SEND', 'CDASH'].includes(this.model) &amp;&amp; !this.dataClasses) {
             this.dataClasses = {};
         }
         this.fullyLoaded = fullyLoaded;
@@ -773,7 +819,7 @@ class Product extends BasicFunctions {
             let dataStructures = {};
             pRaw.dataStructures.forEach(dataStructureRaw => {
                 let href;
-                if (dataStructureRaw['_links'] && dataStructureRaw['_links'].self) {
+                if (dataStructureRaw['_links'] &amp;&amp; dataStructureRaw['_links'].self) {
                     href = dataStructureRaw['_links'].self.href;
                 }
                 let dataStructure = new DataStructure({
@@ -790,7 +836,7 @@ class Product extends BasicFunctions {
             let dataClasses = {};
             pRaw.classes.forEach(dataClassRaw => {
                 let href;
-                if (dataClassRaw['_links'] && dataClassRaw['_links'].self) {
+                if (dataClassRaw['_links'] &amp;&amp; dataClassRaw['_links'].self) {
                     href = dataClassRaw['_links'].self.href;
                 }
                 let dataClass = new DataClass({
@@ -807,7 +853,7 @@ class Product extends BasicFunctions {
             let codelists = {};
             pRaw.classes.forEach(codeListRaw => {
                 let href;
-                if (codeListRaw['_links'] && codeListRaw['_links'].self) {
+                if (codeListRaw['_links'] &amp;&amp; codeListRaw['_links'].self) {
                     href = codeListRaw['_links'].self.href;
                 }
                 let codeList = new CodeList({
@@ -862,11 +908,11 @@ class Product extends BasicFunctions {
 
     /**
      * Get an object with all datasets/domains/dataStructure
-     * <br> This method does not update the main object in case options.short is enabled
+     * &lt;br> This method does not update the main object in case options.short is enabled
      *
      * @param options {GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
-     * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
+     * &lt;br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This method does not load the full product and loads only the dataset information from the CDISC Library.
      */
     async getItemGroups (options) {
@@ -890,7 +936,7 @@ class Product extends BasicFunctions {
             } else {
                 let datasetsHref = `${this.href}/${this.datasetType.toLowerCase()}`;
                 let itemGroupsRaw = await this.coreObject.apiRequest(datasetsHref);
-                if (itemGroupsRaw && itemGroupsRaw['_links'] && itemGroupsRaw['_links'][this.datasetType]) {
+                if (itemGroupsRaw &amp;&amp; itemGroupsRaw['_links'] &amp;&amp; itemGroupsRaw['_links'][this.datasetType]) {
                     itemGroupsRaw['_links'][this.datasetType].forEach(dsRaw => {
                         let name = dsRaw.href.replace(/.*\/(.*)$/, '$1');
                         result[name] = { name, label: dsRaw.title };
@@ -987,14 +1033,14 @@ class Product extends BasicFunctions {
                     result.parseResponse(dsRaw);
                 }
                 // Create a class to add this itemgroup to the main object
-                if (dsRaw['_links'] && dsRaw['_links'].parentClass) {
+                if (dsRaw['_links'] &amp;&amp; dsRaw['_links'].parentClass) {
                     let dcRaw = dsRaw['_links'].parentClass;
                     let dataClass = new DataClass({
                         ...dcRaw,
                         coreObject: this.coreObject
                     });
                     dataClass.name = dataClass.id;
-                    if (this.dataClasses && this.dataClasses.hasOwnProperty(dataClass.id)) {
+                    if (this.dataClasses &amp;&amp; this.dataClasses.hasOwnProperty(dataClass.id)) {
                         // If the dataClass is already present, add the dataset to it
                         this.dataClasses[dataClass.id][this.datasetType][result.id] = result;
                     } else {
@@ -1058,7 +1104,7 @@ class Product extends BasicFunctions {
         if (!this.codelists) {
             let codeListsHref = `${this.href}/codelists`;
             let clRaw = await this.coreObject.apiRequest(codeListsHref);
-            if (clRaw.hasOwnProperty('_links') && clRaw._links.hasOwnProperty('codelists')) {
+            if (clRaw.hasOwnProperty('_links') &amp;&amp; clRaw._links.hasOwnProperty('codelists')) {
                 let codelists = {};
                 clRaw._links.codelists.forEach(codeListRaw => {
                     let codeList = new CodeList({
@@ -1091,11 +1137,11 @@ class Product extends BasicFunctions {
      */
     async getCodeList (codeListId, options = {}) {
         let ct;
-        if (this.codelists && this.codelists[codeListId]) {
+        if (this.codelists &amp;&amp; this.codelists[codeListId]) {
             ct = this.codelists[codeListId];
         }
         // If not found, try to loaded it. Even when found it is possible that the codelist is not fully loaded
-        if ((ct === undefined && !this.fullyLoaded) || (ct && ct.terms.length < 1)) {
+        if ((ct === undefined &amp;&amp; !this.fullyLoaded) || (ct &amp;&amp; ct.terms.length &lt; 1)) {
             let href = this.href + '/codelists/' + codeListId;
             let codeList = new CodeList({
                 href,
@@ -1153,7 +1199,7 @@ class DataStructure extends BasicFunctions {
             dsRaw.analysisVariableSets.forEach(analysisVariableSetRaw => {
                 let href;
                 let id;
-                if (analysisVariableSetRaw['_links'] && analysisVariableSetRaw['_links'].self) {
+                if (analysisVariableSetRaw['_links'] &amp;&amp; analysisVariableSetRaw['_links'].self) {
                     href = analysisVariableSetRaw['_links'].self.href;
                     id = href.replace(/.*\/(.*)$/, '$1');
                 }
@@ -1192,8 +1238,8 @@ class DataStructure extends BasicFunctions {
      *
      * @param name {String} Variable/Field name
      * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * &lt;br> mode {String} - match only full names, partial - match partial names
+     * &lt;br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1265,7 +1311,7 @@ class DataClass extends BasicFunctions {
             dcRaw.datasets.forEach(datasetRaw => {
                 let href;
                 let id;
-                if (datasetRaw['_links'] && datasetRaw['_links'].self) {
+                if (datasetRaw['_links'] &amp;&amp; datasetRaw['_links'].self) {
                     href = datasetRaw['_links'].self.href;
                     id = href.replace(/.*\/(.*)$/, '$1');
                 }
@@ -1287,7 +1333,7 @@ class DataClass extends BasicFunctions {
             if (dcRaw.hasOwnProperty('classVariables')) {
                 dcRaw.classVariables.forEach(variableRaw => {
                     let href;
-                    if (variableRaw['_links'] && variableRaw['_links'].self) {
+                    if (variableRaw['_links'] &amp;&amp; variableRaw['_links'].self) {
                         href = variableRaw['_links'].self.href;
                     }
                     let variable = new Variable({
@@ -1306,7 +1352,7 @@ class DataClass extends BasicFunctions {
             if (dcRaw.hasOwnProperty('cdashModelFields')) {
                 dcRaw.cdashModelFields.forEach(fieldRaw => {
                     let href;
-                    if (fieldRaw['_links'] && fieldRaw['_links'].self) {
+                    if (fieldRaw['_links'] &amp;&amp; fieldRaw['_links'].self) {
                         href = fieldRaw['_links'].self.href;
                     }
                     let field = new Field({
@@ -1352,8 +1398,8 @@ class DataClass extends BasicFunctions {
      *
      * @param name {String} Variable/Field name
      * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * &lt;br> mode {String} - match only full names, partial - match partial names
+     * &lt;br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1371,7 +1417,7 @@ class DataClass extends BasicFunctions {
                 }
             });
         }
-        if (this.classVariables && !(defaultedOptions.firstOnly && result.length > 0)) {
+        if (this.classVariables &amp;&amp; !(defaultedOptions.firstOnly &amp;&amp; result.length > 0)) {
             for (let variable of Object.values(this.classVariables)) {
                 if (matchItem(name, variable, defaultedOptions.mode)) {
                     result.push(variable);
@@ -1381,7 +1427,7 @@ class DataClass extends BasicFunctions {
                 }
             }
         }
-        if (this.cdashModelFields && !(defaultedOptions.firstOnly && result.length > 0)) {
+        if (this.cdashModelFields &amp;&amp; !(defaultedOptions.firstOnly &amp;&amp; result.length > 0)) {
             for (let field of Object.values(this.cdashModelFields)) {
                 if (matchItem(name, field, defaultedOptions.mode)) {
                     result.push(field);
@@ -1431,7 +1477,7 @@ class ItemGroup extends BasicFunctions {
         if (itemRaw.hasOwnProperty(this.itemType)) {
             itemRaw[this.itemType].forEach(itemRaw => {
                 let href;
-                if (itemRaw['_links'] && itemRaw['_links'].self) {
+                if (itemRaw['_links'] &amp;&amp; itemRaw['_links'].self) {
                     href = itemRaw['_links'].self.href;
                 }
                 let item;
@@ -1455,7 +1501,7 @@ class ItemGroup extends BasicFunctions {
             });
         }
         if (itemRaw.hasOwnProperty('_links')) {
-            if (itemRaw._links.self && itemRaw._links.self.type) {
+            if (itemRaw._links.self &amp;&amp; itemRaw._links.self.type) {
                 this.type = itemRaw._links.self.type;
             }
         }
@@ -1497,8 +1543,8 @@ class ItemGroup extends BasicFunctions {
      *
      * @param name {String} Variable/field name
      * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * &lt;br> mode {String} - match only full names, partial - match partial names
+     * &lt;br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1539,7 +1585,7 @@ class ItemGroup extends BasicFunctions {
             if (additionalProps) {
                 updatedItem = { ...additionalProps, ...updatedItem };
             }
-            if (item.valueList && item.valueList.length > 0) {
+            if (item.valueList &amp;&amp; item.valueList.length > 0) {
                 updatedItem.valueList = item.valueList.join(',');
             }
             // Remove all properties, which are Objects
@@ -1680,14 +1726,14 @@ class Item extends BasicFunctions {
         this.label = itemRaw.label;
         this.simpleDatatype = itemRaw.simpleDatatype;
         if (itemRaw.hasOwnProperty('_links')) {
-            if (itemRaw._links.codelist && Array.isArray(itemRaw._links.codelist) && itemRaw._links.codelist.length > 0 && itemRaw._links.codelist[0].href) {
+            if (itemRaw._links.codelist &amp;&amp; Array.isArray(itemRaw._links.codelist) &amp;&amp; itemRaw._links.codelist.length > 0 &amp;&amp; itemRaw._links.codelist[0].href) {
                 this.codelistHref = itemRaw._links.codelist[0].href;
                 this.codelist = itemRaw._links.codelist[0].href.replace(/.*\/(\S+)/, '$1');
-            } else if (itemRaw._links.codelist && itemRaw._links.codelist.href) {
+            } else if (itemRaw._links.codelist &amp;&amp; itemRaw._links.codelist.href) {
                 this.codelistHref = itemRaw._links.codelist.href;
                 this.codelist = itemRaw._links.codelist.href.replace(/.*\/(\S+)/, '$1');
             }
-            if (itemRaw._links.self && itemRaw._links.self.type) {
+            if (itemRaw._links.self &amp;&amp; itemRaw._links.self.type) {
                 this.type = itemRaw._links.self.type;
             }
         }
@@ -1705,7 +1751,7 @@ class Item extends BasicFunctions {
             if (rootCodeListRaw === undefined) {
                 return;
             }
-            if (rootCodeListRaw._links && rootCodeListRaw._links.versions) {
+            if (rootCodeListRaw._links &amp;&amp; rootCodeListRaw._links.versions) {
                 let href;
                 if (ctVer) {
                     rootCodeListRaw._links.versions.some(version => {
@@ -1791,7 +1837,7 @@ class Field extends Item {
         this.implementationNotes = fRaw.implementationNotes;
         this.mappingInstructions = fRaw.mappingInstructions;
         if (fRaw.hasOwnProperty('_links')) {
-            if (fRaw._links.sdtmigDatasetMappingTargets && fRaw._links.sdtmigDatasetMappingTargets.href) {
+            if (fRaw._links.sdtmigDatasetMappingTargets &amp;&amp; fRaw._links.sdtmigDatasetMappingTargets.href) {
                 this.sdtmigDatasetMappingTargetsHref = fRaw._links.sdtmigDatasetMappingTargets.href;
             }
         }
@@ -1812,3 +1858,32 @@ module.exports = {
     Field,
     CodeList,
 };
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.3</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
+</body>
+</html>

@@ -3,7 +3,7 @@
         "allowUnknownTags": false
     },
     "source": {
-        "include": "src/claWrapper.js"
+        "include": ["src/claWrapper.js", "README.md"]
     },
     "opts": {
         "template": "node_modules/docdash",
@@ -13,5 +13,10 @@
     "docdash": {
         "search": true,
         "collapse": true
+    },
+    "templates": {
+        "default": {
+            "includeDate": false
+        }
     }
 }

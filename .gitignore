@@ -1,4 +1,5 @@
 src/test.js
+src/*.dev.js
 node_modules
 data
 .vscode
