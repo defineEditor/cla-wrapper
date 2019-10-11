@@ -20,6 +20,13 @@
             "url": ""
         }
     ],
+    "homepage": "https://defineeditor.github.io/cla-wrapper/index.html",
+    "keywords": [
+        "cdisc",
+        "library",
+        "api",
+        "wrapper"
+    ],
     "license": "MIT",
     "dependencies": {
         "json2csv": "^4.5.2",

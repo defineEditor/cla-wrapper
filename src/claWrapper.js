@@ -153,7 +153,7 @@ class CdiscLibrary {
         let result;
         try {
             response = await this.coreObject.apiRequest('/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID', undefined, true);
-            result = { statusCode: response.status };
+            result = { statusCode: response.statusCode };
         } catch (error) {
             response = { statusCode: -1, description: error.message };
         }
