@@ -25,7 +25,10 @@ const defaultGetItemGroupsOptions = { type: 'long' };
 
 class CoreObject {
     /**
-     * CDISC Library Core Object which contains API request functions and technical information
+     * CDISC Library Core Object which contains API request functions and technical information.
+     * @property {String} username CDISC Library username.
+     * @property {String} password CDISC Library password.
+     * @property {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library. 
      */
     constructor ({ username, password, baseUrl } = {}) {
         this.username = username;
@@ -44,12 +47,12 @@ class CoreObject {
     /**
      * Make an API request
      *
-     * @param {String} endpoint CDISC Library API endpoint
-     * @param {Object} [headers] Optional additional headers for the request
-     * @param {Boolean} [returnRaw] If true, a raw response is returned
-     * @returns {Object} API response, if API request failed a blank object is returned
+     * @param {String} endpoint CDISC Library API endpoint.
+     * @param {Object} [headers] Optional additional headers for the request.
+     * @param {Boolean} [returnRaw=false] If true, a raw response is returned. By default the response body is returned.
+     * @returns {Object} API response, if API request failed a blank object is returned.
      */
-    async apiRequest (endpoint, headers, returnRaw) {
+    async apiRequest (endpoint, headers, returnRaw = false) {
         try {
             let response = await apiRequest({ username: this.username, password: this.password, url: this.baseUrl + endpoint, headers });
             // Count traffic
@@ -85,8 +88,8 @@ class BasicFunctions {
     /**
      * Get raw API response
      *
-     * @param {String} [href] CDISC Library API endpoint. If not specified, href attribute of the object is used.
-     * @returns {Object|undefined} Returns an JSON response if the request was successfull, otherwise returns undefined
+     * @param {String} [href=this.href] CDISC Library API endpoint. If not specified, href attribute of the object is used.
+     * @returns {Object|undefined} Returns a JSON response if the request was successfull, otherwise returns undefined.
      */
     async getRawResponse (href) {
         let link = href;
@@ -104,7 +107,7 @@ class BasicFunctions {
     /**
      * Load object from the CDISC Library
      *
-     * @param {String} [href] CDISC Library API endpoint. If not specified, href attribute of the object is used.
+     * @param {String} [href=this.href] CDISC Library API endpoint. If not specified, href attribute of the object is used.
      * @returns {boolean} Returns true in the object was successfully loaded, false otherwise
      */
     async load (href) {
@@ -118,7 +121,7 @@ class BasicFunctions {
     }
 
     /**
-     * Convert class to simple object, without methods or technical elements
+     * Convert class to a simple object, removes methods and technical elements (e.g., coreObject).
      *
      * @returns {Object} A new object
      */
@@ -137,6 +140,12 @@ class BasicFunctions {
 class CdiscLibrary {
     /**
      * CDISC Library Main class
+     * @param {Object} params
+     * @param {String} params.username CDISC Library username.
+     * @param {String} params.password CDISC Library password.
+     * @param {String} [params.baseUrl=https://library.cdisc.org/api] A base URL for the library.
+     * @property {Object} productClasses An object with product classes.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ username, password, baseUrl, productClasses } = {}) {
         this.coreObject = new CoreObject({ username, password, baseUrl });
@@ -170,7 +179,7 @@ class CdiscLibrary {
     }
 
     /**
-     * Get an object with product classes
+     * Get product classes
      *
      * @returns {Object} Product classes
      */
@@ -209,7 +218,7 @@ class CdiscLibrary {
     /**
      * Get a list of product group names
      *
-     * @returns {Array} Array of product groups
+     * @returns {Array} Array of product group names
      */
     async getProductGroupList () {
         let result = [];
@@ -221,10 +230,10 @@ class CdiscLibrary {
     }
 
     /**
-     * Get a list of product names
+     * Get a list of product IDs
      *
-     * @param {String} [format] Specifies the output format. Possible values: json, csv.
-     * @returns {Array} List of product names (IDs)
+     * @param {String} [format=json] Specifies the output format. Possible values: json, csv.
+     * @returns {Object|String} List of product names (IDs)
      */
     async getProductList (format = 'json') {
         let result = [];
@@ -236,10 +245,10 @@ class CdiscLibrary {
     }
 
     /**
-     * Get an object with a fully loaded product by name or alias
+     * Get an object with a loaded product
      *
-     * @param alias {String} Product alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
-     * @param [loadBasicInfo] {Boolean} If true, will load only basic product details.
+     * @param {String} alias Product alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param {Boolean} [loadBasicInfo] If true, will load only basic product details. By default a full product is loaded.
      * @returns {Object} Product
      */
     async getFullProduct (alias, loadBasicInfo) {
@@ -260,12 +269,12 @@ class CdiscLibrary {
     }
 
     /**
-     * Get a dataset/dataStructure for a specific product
+     * Get a dataset/dataStructure/domain for a specific product
      *
-     * @param name {String} Dataset name
+     * @param name {String} Dataset name.
      * @param productAlias {String} Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
      * @param options {GetItemGroupOptions}
-     * @returns {Object} Dataset
+     * @returns {Object} Dataset/DataStructure/Domain
      */
     async getItemGroup (name, productAlias, options) {
         let result;
@@ -283,13 +292,13 @@ class CdiscLibrary {
     }
 
     /**
-     * Get an object with all datasets/domains/dataStructure
+     * Get an object with all datasets/domains/dataStructure for a specific product
      * <br> This method does not update the main object
      *
      * @param options {GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
-     * This approach does not load the full product and loads only the dataset information from the CDISC Library.
+     * This approach does not load the full product and loads only the itemGroup information from the CDISC Library.
      */
     async getItemGroups (productAlias, options) {
         let defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
@@ -309,9 +318,9 @@ class CdiscLibrary {
     /**
      * Get an object with all datasets/domains/dataStructure/codelists
      *
-     * @param options {Object} Detail options
-     * <br> type='short' {String} Short/extended list of product attributes. Possible values: short, long
-     * <br> format='object' {String} Output format. Possible values: json, csv
+     * @param {Object} options Detail options
+     * @param {String} [options.type=short] Short/extended list of product attributes. Possible values: short, long
+     * @param {String} [options.format=json] Output format. Possible values: json, csv.
      * @returns {Object|String} Product list with details
      */
     async getProductDetails ({ type = 'short', format = 'json' } = {}) {
@@ -340,10 +349,10 @@ class CdiscLibrary {
     }
 
     /**
-     * Get traffic used by the library in a human-readable format
+     * Get traffic used by the current insurance of the CdiscLibrary class
      *
-     * @param type='all' {String} Type of the traffic. Possible values: all, incoming, outgoing
-     * @param format='char' {String} Output format. Possible values: char, num
+     * @param {String} [type=all] Type of the traffic. Possible values: all, incoming, outgoin.
+     * @param {String} [format=char] Output format. If char is used, the result will be returned in a human-readable format (34kb, 5.3MB). Possible values: char, num.
      * @returns {String|Integer} Traffic used in a human-readable format or number of bytes
      */
     getTrafficStats (type = 'all', format = 'char') {
@@ -376,9 +385,9 @@ class CdiscLibrary {
     }
 
     /**
-     * Get a product, product group, product class IDs by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
+     * Get a product, product group, product class IDs by alias or substring, e.g., adamig11 agamig1-1 adamig1.1 will return { productClassId: 'data-analysis', productGroupId: 'adam', productId: 'adamig-1-1' }.
      *
-     * @param name {String} Product name alias
+     * @param {String} name Product name alias
      * @returns {Object|undefined} Product, product group, product class IDs
      */
     async getProductIdByAlias (alias) {
@@ -402,6 +411,10 @@ class ProductClass extends BasicFunctions {
     /**
      * Product class
      * @extends BasicFunctions
+     *
+     * @property {String} name Product class name.
+     * @property {Object} productGroups An object with Product Groups.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ name, productGroups, coreObject } = {}) {
         super();
@@ -413,8 +426,8 @@ class ProductClass extends BasicFunctions {
     /**
      * Parse API response to product classes
      *
-     * @param name Product class name
-     * @param pcRaw Raw CDISC API response
+     * @param {String} name Product class name.
+     * @param {Oject} pcRaw Raw CDISC API response.
      */
     parseResponse (name, pcRaw) {
         this.name = name;
@@ -458,10 +471,10 @@ class ProductClass extends BasicFunctions {
     }
 
     /**
-     * Get a list of product names
+     * Get a list of product IDs
      *
-     * @param {String} [format] Specifies the output format. Possible values: json, csv.
-     * @returns {Array} List of product names (IDs)
+     * @param {String} [format=json] Specifies the output format. Possible values: json, csv.
+     * @returns {Object|String} List of product names (IDs)
      */
     getProductList (format = 'json') {
         let result = [];
@@ -473,12 +486,12 @@ class ProductClass extends BasicFunctions {
     }
 
     /**
-     * Get a dataset/dataStructure for a specific product
+     * Get a dataset/dataStructure/domain for a specific product
      *
-     * @param name {String} Dataset name
-     * @param productAlias {String} Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
-     * @param options {GetItemGroupOptions}
-     * @returns {Object} Dataset
+     * @param {String} name Dataset name
+     * @param {String} productAlias  Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param {GetItemGroupOptions} options
+     * @returns {Object} Dataset/DataStruture/Domain
      */
     async getItemGroup (name, productAlias, options) {
         let result;
@@ -496,7 +509,7 @@ class ProductClass extends BasicFunctions {
      * Get an object with all datasets/domains/dataStructure
      * <br> This method does not update the main object
      *
-     * @param options {GetItemGroupsOptions}
+     * @param {GetItemGroupsOptions} options
      * @returns {Object} An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This approach does not load the full product and loads only the dataset information from the CDISC Library.
@@ -514,9 +527,9 @@ class ProductClass extends BasicFunctions {
     }
 
     /**
-     * Get a product and product group IDs by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
+     * Get a product, product group IDs by alias or substring, e.g., adamig11 agamig1-1 adamig1.1 will return { productGroupId: 'adam', productId: 'adamig-1-1' }.
      *
-     * @param name {String} Product name alias
+     * @param {String} name Product name alias
      * @returns {Object|undefined} Product and product group IDs
      */
     getProductIdByAlias (alias) {
@@ -537,6 +550,10 @@ class ProductGroup extends BasicFunctions {
     /**
      * Product Group class
      * @extends BasicFunctions
+     *
+     * @property {String} name Product group name.
+     * @property {Object} products An object with products.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ name, products = {}, coreObject } = {}) {
         super();
@@ -550,7 +567,6 @@ class ProductGroup extends BasicFunctions {
      *
      * @param name {String} name
      * @param pgRaw {String} Raw CDISC API response
-     * @returns {undefined}
      */
     parseResponse (name, pgRaw) {
         this.name = name;
@@ -563,7 +579,7 @@ class ProductGroup extends BasicFunctions {
     }
 
     /**
-     * Get an object with products
+     * Get oll products for this product group
      *
      * @returns {Object} Products
      */
@@ -576,10 +592,10 @@ class ProductGroup extends BasicFunctions {
     }
 
     /**
-     * Get a list of product names
+     * Get a list of product IDs
      *
-     * @param [format] {String} Specifies the output format. Possible values: json, csv.
-     * @returns {Array} List of product names (IDs)
+     * @param {String} [format=json] Specifies the output format. Possible values: json, csv.
+     * @returns {Object|String} List of product names (IDs)
      */
     getProductList (format = 'json') {
         let result;
@@ -592,10 +608,10 @@ class ProductGroup extends BasicFunctions {
     }
 
     /**
-     * Get a product ID by alias or substring, e.g. adamig11 agamig1-1 adamig1.1 will return adamig-1-1
+     * Get a product ID by alias or substring, e.g., adamig11 agamig1-1 adamig1.1 will return { productId: 'adamig-1-1' }.
      *
-     * @param name {String} Product name alias
-     * @returns {Object|undefined} An object with product ID
+     * @param {String} name Product name alias
+     * @returns {Object|undefined} Product ID
      */
     getProductIdByAlias (alias) {
         let productId;
@@ -620,8 +636,8 @@ class ProductGroup extends BasicFunctions {
     /**
      * Get an object with a fully loaded product by name or alias
      *
-     * @param alias {String} Product name alias
-     * @param [loadBasicInfo] {Boolean} If true, will load only basic product details.
+     * @param {String} alias Product name alias
+     * @param {Boolean} [loadBasicInfo] If true, will load only basic product details. By default a full product is loaded.
      * @returns {Object} Product
      */
     async getFullProduct (alias, loadBasicInfo) {
@@ -643,12 +659,12 @@ class ProductGroup extends BasicFunctions {
     }
 
     /**
-     * Get a dataset/dataStructure for a specific product
+     * Get a dataset/dataStructure/domain for a specific product
      *
-     * @param name {String} Dataset name
-     * @param productAlias {String} Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
-     * @param options {GetItemGroupOptions}
-     * @returns {Object} Dataset
+     * @param {String} name Dataset name
+     * @param {String} productAlias  Product name alias. Examples: sdtmig3-3, sdtm1.7, adamig11.
+     * @param {GetItemGroupOptions} options
+     * @returns {Object} Dataset/DataStruture/Domain
      */
     async getItemGroup (name, productAlias, options) {
         let defaultedOptions = { ...defaultGetItemGroupOptions, ...options };
@@ -662,7 +678,7 @@ class ProductGroup extends BasicFunctions {
      * Get an object with all datasets/domains/dataStructure
      * <br> This method does not update the main object
      *
-     * @param options {GetItemGroupsOptions}
+     * @param {GetItemGroupsOptions} options
      * @returns {Object} An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This approach does not load the full product and loads only the dataset information from the CDISC Library.
@@ -688,6 +704,24 @@ class Product extends BasicFunctions {
     /**
      * Product class
      * @extends BasicFunctions
+     *
+     * @property {String} id CLA Wrapper attribute. Data structure ID.
+     * @property {String} name CDISC Library attribute.
+     * @property {String} label CDISC Library attribute.
+     * @property {String} title CDISC Library attribute.
+     * @property {String} type CDISC Library attribute.
+     * @property {String} description CDISC Library attribute.
+     * @property {String} effectiveDate CDISC Library attribute.
+     * @property {String} registrationStatus CDISC Library attribute.
+     * @property {String} version CDISC Library attribute.
+     * @property {Object} dataClasses CDISC Library attribute. Corresponds to CDISC Library classes attribute.
+     * @property {Object} dataStructures CDISC Library attribute.
+     * @property {Object} codelists CDISC Library attribute.
+     * @property {String} href CDISC Library attribute.
+     * @property {String} model CLA Wrapper attribute. Model of the product (e.g., ADaM, SDTM, SEND, CDASH)
+     * @property {String} datasetType CLA Wrapper attribute. Name of the attribute which contains child groups (e.g., dataStructures, dataClasses, domains, codelits)
+     * @property {Boolean} fullyLoaded CLA Wrapper attribute. Set to TRUE when the product is fully loaded, FALSE otherwise.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({
         id, name, title, label, type, description, source, effectiveDate,
@@ -761,7 +795,7 @@ class Product extends BasicFunctions {
     /**
      * Parse API response to product
      *
-     * @param pRaw {Object} Raw CDISC API response
+     * @param {Object} pRaw Raw CDISC API response
      */
     parseResponse (pRaw) {
         this.name = pRaw.name;
@@ -826,7 +860,7 @@ class Product extends BasicFunctions {
     /**
      * Get an object with all variables/fields for that product
      *
-     * @returns {Object} An object with variables
+     * @returns {Object} An object with variables/fields
      */
     async getItems () {
         if (this.fullyLoaded === true) {
@@ -843,7 +877,7 @@ class Product extends BasicFunctions {
     /**
      * Get an object with all variables/fields for that product which are currently loaded
      *
-     * @returns {Object} An object with variables
+     * @returns {Object} An object with variables/fields
      */
     getCurrentItems () {
         let sourceObject;
@@ -863,12 +897,12 @@ class Product extends BasicFunctions {
 
     /**
      * Get an object with all datasets/domains/dataStructure
-     * <br> This method does not update the main object in case options.short is enabled
+     * <br> This method does not update the main object
      *
-     * @param options {GetItemGroupsOptions}
+     * @param {GetItemGroupsOptions} options
      * @returns {Object} An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
-     * This method does not load the full product and loads only the dataset information from the CDISC Library.
+     * This approach does not load the full product and loads only the dataset information from the CDISC Library.
      */
     async getItemGroups (options) {
         let defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
@@ -915,9 +949,9 @@ class Product extends BasicFunctions {
     }
 
     /**
-     * Get an object with all datasets/dataStructures for that product which are currently loaded
+     * Get an object with all datasets/dataStructures/domains for that product which are currently loaded
      *
-     * @returns {Object} An object with datasets
+     * @returns {Object} An object with datasets/dataStructures/domains
      */
     getCurrentItemGroups () {
         let result = {};
@@ -936,11 +970,11 @@ class Product extends BasicFunctions {
     }
 
     /**
-     * Get a dataset/dataStructure/domain
-     * @param name {String} Dataset name
-     * @param options {GetItemGroupOptions}
+     * Get a dataset/dataStructure/domain for that product
      *
-     * @returns {Object} Dataset/DataStructure/Domain
+     * @param {String} name Dataset name
+     * @param {GetItemGroupOptions} options
+     * @returns {Object} Dataset/DataStruture/Domain
      */
     async getItemGroup (name, options) {
         let result;
@@ -1016,10 +1050,10 @@ class Product extends BasicFunctions {
     /**
      * Find all matching variables/fields. For example TRxxPGy matches TR01PG12.
      *
-     * @param name {String} Variable/Field name
-     * @param [options] {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * @param options.mode {String}  Match only full names, partial - match partial names
-     * @param options.firstOnly {Boolean}  If true, returns only the first matching item, false - returns all matching items
+     * @param {String} name Variable/Field name.
+     * @param {Object} [options]  Matching options.
+     * @param {String} [options.mode=full] Match only full names, partial - match partial names.
+     * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1047,11 +1081,11 @@ class Product extends BasicFunctions {
     }
 
     /**
-     * Get a list of codelists in terminology
+     * Get a list of codelists in for that terminology.
      *
-     * @param [options] {Object} Output options
-     * @param options.short {Boolean} Keep only preferred term and ID in the result
-     * @param options.format {String} Specifies the output format. Possible values: json, csv.
+     * @param {Object} [options] Output options.
+     * @param {Boolean} [options.short] Keep only preferred term and ID in the result.
+     * @param {String} [options.format=json] Specifies the output format. Possible values: json, csv.
      * @returns {Array} Array of codelist IDs and titles.
      */
     async getCodeListList (options = {}) {
@@ -1083,12 +1117,12 @@ class Product extends BasicFunctions {
     }
 
     /**
-     * Get a codelists
+     * Get a codelist.
      *
-     * @param {String} codeListId Concept ID of the codelist
-     * @param {Object} [options] Output options
-     * @param {String} options.format Specifies the output format. Possible values: json, csv.
-     * @returns {Object} Codelist
+     * @param {String} codeListId Concept ID of the codelist.
+     * @param {Object} [options] Output options.
+     * @param {String} [options.format=json] Specifies the output format. Possible values: json, csv.
+     * @returns {Object} Codelist.
      */
     async getCodeList (codeListId, options = {}) {
         let ct;
@@ -1126,6 +1160,15 @@ class DataStructure extends BasicFunctions {
     /**
      * Data Structure class
      * @extends BasicFunctions
+     *
+     * @property {String} id CLA Wrapper attribute. Data structure ID.
+     * @property {String} name CDISC Library attribute.
+     * @property {String} label CDISC Library attribute.
+     * @property {String} description CDISC Library attribute.
+     * @property {String} className CDISC Library attribute.
+     * @property {Object} analysisVariableSets CDISC Library attribute.
+     * @property {String} href CDISC Library attribute.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ name, label, description, className, analysisVariableSets, href, coreObject } = {}) {
         super();
@@ -1142,7 +1185,7 @@ class DataStructure extends BasicFunctions {
     /**
      * Parse API response to data structure
      *
-     * @param dsRaw Raw CDISC API response
+     * @param dsRaw {Object} Raw CDISC API response
      */
     parseResponse (dsRaw) {
         this.name = dsRaw.name;
@@ -1176,7 +1219,7 @@ class DataStructure extends BasicFunctions {
     /**
      * Get an object with all variables/fields for that data structure
      *
-     * @returns {Object} An object with variables
+     * @returns {Object} An object with variables/fields
      */
     getItems () {
         let result = {};
@@ -1191,10 +1234,10 @@ class DataStructure extends BasicFunctions {
     /**
      * Find all matching variables/fields. For example TRxxPGy matches TR01PG12.
      *
-     * @param name {String} Variable/Field name
-     * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * @param {String} name Variable/Field name.
+     * @param {Object} [options]  Matching options.
+     * @param {String} [options.mode=full] Match only full names, partial - match partial names.
+     * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1216,10 +1259,10 @@ class DataStructure extends BasicFunctions {
     }
 
     /**
-     * Get items in a specific format
+     * Get items in a specific format.
      *
-     * @param format {String} Specifies the output format. Possible values: json, csv, object.
-     * @param addItemGroupId=false {Boolean} If set to true, itemGroup name is added to each records.
+     * @param {String} format Specifies the output format. Possible values: json, csv.
+     * @param {Boolean} [addItemGroupId=false] If set to true, itemGroup name is added to each records.
      * @returns {String|Array} String with formatted items or an array with item details.
      */
     getFormattedItems (format, addItemGroupId = false) {
@@ -1237,6 +1280,18 @@ class DataClass extends BasicFunctions {
     /**
      * Dataset Class class
      * @extends BasicFunctions
+     *
+     * @property {String} id CLA Wrapper attribute. Data class ID.
+     * @property {String} name CDISC Library attribute.
+     * @property {String} label CDISC Library attribute.
+     * @property {String} description CDISC Library attribute.
+     * @property {Object} datasets CDISC Library attribute.
+     * @property {Object} domains CDISC Library attribute.
+     * @property {Object} classVariables CDISC Library attribute.
+     * @property {Object} cdashModelFields CDISC Library attribute.
+     * @property {Object} analysisVariableSets CDISC Library attribute.
+     * @property {String} href CDISC Library attribute.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject } = {}) {
         super();
@@ -1255,7 +1310,7 @@ class DataClass extends BasicFunctions {
     /**
      * Parse API response to data structure
      *
-     * @param dcRaw Raw CDISC API response
+     * @param {Object} dcRaw Raw CDISC API response
      */
     parseResponse (dcRaw) {
         this.name = dcRaw.name;
@@ -1326,7 +1381,7 @@ class DataClass extends BasicFunctions {
     /**
      * Get an object with all variables/fields for that data structure
      *
-     * @returns {Object} An object with variables
+     * @returns {Object} An object with variables/fields
      */
     getItems () {
         let result = {};
@@ -1351,10 +1406,10 @@ class DataClass extends BasicFunctions {
     /**
      * Find all matching variables/fields. For example TRxxPGy matches TR01PG12.
      *
-     * @param name {String} Variable/Field name
-     * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * @param {String} name Variable/Field name.
+     * @param {Object} [options]  Matching options.
+     * @param {String} [options.mode=full] Match only full names, partial - match partial names.
+     * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1400,6 +1455,14 @@ class ItemGroup extends BasicFunctions {
     /**
      * Item Set class: base for Dataset, DataStructure, Domain
      * @extends BasicFunctions
+     *
+     * @property {String} name CDISC Library attribute.
+     * @property {String} label CDISC Library attribute.
+     * @property {String} type CDISC Library attribute. Value of the _links.self.type.
+     * @property {String} href CDISC Library attribute.
+     * @property {String} id CLA Wrapper attribute. Item group class ID.
+     * @property {String} itemType CLA Wrapper attribute. Name of the item type (field, analysisVariable, datasetVariable). Corresponds to an object name of the classes which are extending ItemGroup class (Dataset, Domain, VariableSet).
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ id, name, label, itemType, type, href, coreObject } = {}) {
         super();
@@ -1421,9 +1484,9 @@ class ItemGroup extends BasicFunctions {
     }
 
     /**
-     * Parse API response to variable set
+     * Parse API response to variable set.
      *
-     * @param vsRaw Raw CDISC API response
+     * @param {Object} vsRaw Raw CDISC API response.
      */
     parseResponse (itemRaw) {
         this.name = itemRaw.name;
@@ -1464,9 +1527,9 @@ class ItemGroup extends BasicFunctions {
     }
 
     /**
-     * Get an object with all variables/fields for that item set
+     * Get an object with all variables/fields for that item set.
      *
-     * @returns {Object} An object with variables
+     * @returns {Object} An object with variables/fields.
      */
     getItems () {
         let result = {};
@@ -1479,9 +1542,9 @@ class ItemGroup extends BasicFunctions {
     }
 
     /**
-     * Get an array with the list of all items
+     * Get an array with the list of names for all items.
      *
-     * @returns {Array} An array with item names
+     * @returns {Array} An array with item names.
      */
     getNameList () {
         let result = [];
@@ -1496,10 +1559,10 @@ class ItemGroup extends BasicFunctions {
     /**
      * Find all matching variables/fields. For example TRxxPGy matches TR01PG12.
      *
-     * @param name {String} Variable/field name
-     * @param options {Object} Matching options. By default the following options are used: { mode: 'full', firstOnly: false }.
-     * <br> mode {String} - match only full names, partial - match partial names
-     * <br> firstOnly {Boolean} true - returns only the first matching item, false - returns all matching items
+     * @param {String} name Variable/Field name.
+     * @param {Object} [options]  Matching options.
+     * @param {String} [options.mode=full] Match only full names, partial - match partial names.
+     * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
      * @returns {Array} Array of matched items.
      */
     findMatchingItems (name, options) {
@@ -1520,11 +1583,11 @@ class ItemGroup extends BasicFunctions {
     }
 
     /**
-     * Get items in a specific format
+     * Get items in a specific format.
      *
-     * @param format {String} Specifies the output format. Possible values: json, csv, object.
-     * @param addItemGroupId=false {Boolean} If set to true, itemGroup name is added to each records.
-     * @param additionalProps {Object} If provided, these properties will be added.
+     * @param {String} format Specifies the output format. Possible values: json, csv.
+     * @param {Boolean} [addItemGroupId=false] If set to true, itemGroup name is added to each records.
+     * @param {Object} [additionalProps] If provided, these properties will be added.
      * @returns {String|Array} String with formatted items or an array with item details.
      */
     getFormattedItems (format, addItemGroupId = false, additionalProps) {
@@ -1557,8 +1620,10 @@ class ItemGroup extends BasicFunctions {
 
 class Dataset extends ItemGroup {
     /**
-     * Dataset class. Extends ItemGroup class. See {@link ItemGroup} for the list of available methods.
+     * Dataset class. Extends ItemGroup class.
      * @extends ItemGroup
+     *
+     * @property {Object} datasetVariables CDISC Library attribute.
      */
     constructor ({ id, name, label, datasetVariables = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'datasetVariables', href, coreObject });
@@ -1568,8 +1633,10 @@ class Dataset extends ItemGroup {
 
 class AnalysisVariableSet extends ItemGroup {
     /**
-     * Analysis Variable Set class. Extends ItemGroup class. See {@link ItemGroup} for the list of available methods.
+     * Analysis Variable Set class. Extends ItemGroup class.
      * @extends ItemGroup
+     *
+     * @property {Object} analysisVariables CDISC Library attribute.
      */
     constructor ({ id, name, label, analysisVariables = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
@@ -1579,8 +1646,10 @@ class AnalysisVariableSet extends ItemGroup {
 
 class Domain extends ItemGroup {
     /**
-     * Domain class. Extends ItemGroup class. See {@link ItemGroup} for the list of available methods.
+     * Domain class. Extends ItemGroup class.
      * @extends ItemGroup
+     *
+     * @property {Object} fields CDISC Library attribute.
      */
     constructor ({ id, name, label, fields = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
@@ -1592,6 +1661,17 @@ class CodeList extends BasicFunctions {
     /**
      * CodeList class
      * @extends BasicFunctions
+     *
+     * @property {String} conceptId CDISC Library attribute.
+     * @property {String} name CDISC Library attribute.
+     * @property {String} extensible CDISC Library attribute.
+     * @property {String} submissionValue CDISC Library attribute.
+     * @property {String} definition CDISC Library attribute.
+     * @property {String} preferredTerm CDISC Library attribute.
+     * @property {String} synonyms CDISC Library attribute.
+     * @property {Object} terms CDISC Library attribute.
+     * @property {String} href CDISC Library attribute.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject } = {}) {
         super();
@@ -1612,9 +1692,9 @@ class CodeList extends BasicFunctions {
     }
 
     /**
-     * Parse API response to codelist
+     * Parse API response to codelist.
      *
-     * @param clRaw Raw CDISC API response
+     * @param {Object} clRaw Raw CDISC API response.
      */
     parseResponse (clRaw) {
         this.conceptId = clRaw.conceptId;
@@ -1632,9 +1712,9 @@ class CodeList extends BasicFunctions {
     }
 
     /**
-     * Get codelist terms in a specific format
+     * Get codelist terms in a specific format.
      *
-     * @param format {String} Specifies the output format. Possible values: json, csv.
+     * @param {String} [format=json] Specifies the output format. Possible values: json, csv.
      * @returns {String} Formatted codeList terms.
      */
     getFormattedTerms (format = 'json') {
@@ -1646,6 +1726,17 @@ class Item extends BasicFunctions {
     /**
      * Item class
      * @extends BasicFunctions
+     *
+     * @property {String} ordinal CDISC Library attribute.
+     * @property {String} name CDISC Library attribute.
+     * @property {String} label CDISC Library attribute.
+     * @property {String} simpleDatatype CDISC Library attribute.
+     * @property {String} codelist CDISC Library attribute. C-Code of the codelist.
+     * @property {String} codelistHref CDISC Library attribute.
+     * @property {String} type CDISC Library attribute. Value of the _links.self.type.
+     * @property {String} href CDISC Library attribute.
+     * @property {Object} id CLA Wrapper attribute. Item ID.
+     * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, type, href, coreObject } = {}) {
         super();
@@ -1671,9 +1762,9 @@ class Item extends BasicFunctions {
     }
 
     /**
-     * Parse API response to item
+     * Parse API response to item.
      *
-     * @param itemRaw Raw CDISC API response
+     * @param {Object} itemRaw Raw CDISC API response.
      */
     parseItemResponse (itemRaw) {
         this.ordinal = itemRaw.ordinal;
@@ -1695,9 +1786,9 @@ class Item extends BasicFunctions {
     }
 
     /**
-     * Get a Codelist object corresponding to the codelist used by the item
+     * Get a Codelist object corresponding to the codelist used by the item.
      *
-     * @param ctVer {String} Version of the CT, for example 2015-06-26. If blank, the last (not necessarily the latest) version will be returned.
+     * @param {String} [ctVer] Version of the CT, for example 2015-06-26. If blank, the last (not necessarily the latest) version will be returned.
      * @returns {Object|undefined} Instance of the CodeList class if item has a codelist.
      */
     async getCodeList (ctVer) {
@@ -1732,6 +1823,13 @@ class Variable extends Item {
     /**
      * Variable class
      * @extends Item
+     *
+     * @property {String} description CDISC Library attribute.
+     * @property {String} core CDISC Library attribute.
+     * @property {String} role CDISC Library attribute.
+     * @property {String} roleDescription CDISC Library attribute. In most cases identical to role, but in some cases contains further explanation of the role attribute.
+     * @property {Array}  valueList CDISC Library attribute.
+     * @property {String} describedValueDomain CDISC Library attribute.
      */
     constructor ({ id, ordinal, name, label, description, core, simpleDatatype, role, roleDescription,
         valueList = [], codelist, codelistHref, describedValueDomain, href, coreObject
@@ -1764,6 +1862,15 @@ class Variable extends Item {
 class Field extends Item {
     /**
      * CDASH Field class
+     * @extends Item
+     *
+     * @property {String} definition CDISC Library attribute.
+     * @property {String} questionText CDISC Library attribute.
+     * @property {String} prompt CDISC Library attribute.
+     * @property {String} completionInstructions CDISC Library attribute. In most cases identical to role, but in some cases contains further explanation of the role attribute.
+     * @property {String} implementationNotes CDISC Library attribute.
+     * @property {String} mappingInstructions CDISC Library attribute.
+     * @property {String} sdtmigDatasetMappingTargetsHref CDISC Library attribute.
      */
     constructor ({ id, ordinal, name, label, definition, questionText, prompt, completionInstructions, implementationNotes,
         simpleDatatype, mappingInstructions, sdtmigDatasetMappingTargetsHref, codelist, codelistHref, href, coreObject } = {}
@@ -1779,9 +1886,9 @@ class Field extends Item {
     }
 
     /**
-     * Parse API response to variable
+     * Parse API response to field.
      *
-     * @param fRaw Raw CDISC API response
+     * @param {Object} fRaw Raw CDISC API response.
      */
     parseResponse (fRaw) {
         this.parseItemResponse(fRaw);
