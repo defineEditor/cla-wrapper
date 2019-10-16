@@ -1,12 +1,12 @@
 {
     "name": "cla-wrapper",
     "version": "0.1.3",
-    "description": "CDISC Library API wrapper",
+    "description": "Wrapper for CDISC Library API",
     "main": "src/claWrapper.js",
     "scripts": {
         "docs": "jsdoc -c jsdoc.json"
     },
-    "repository": "https://github.com/defineEditor/claWrapper",
+    "repository": "https://github.com/defineEditor/cla-wrapper",
     "author": "Dmitry Kolosov",
     "contributors": [
         {

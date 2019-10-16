@@ -28,7 +28,7 @@ class CoreObject {
      * CDISC Library Core Object which contains API request functions and technical information.
      * @property {String} username CDISC Library username.
      * @property {String} password CDISC Library password.
-     * @property {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library. 
+     * @property {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library.
      */
     constructor ({ username, password, baseUrl } = {}) {
         this.username = username;
@@ -1337,6 +1337,28 @@ class DataClass extends BasicFunctions {
                 datasets[id].parseResponse(datasetRaw);
             });
             this.datasets = datasets;
+        }
+        if (dcRaw.hasOwnProperty('domains')) {
+            let domains = {};
+            dcRaw.domains.forEach(domainRaw => {
+                let href;
+                let id;
+                if (domainRaw['_links'] && domainRaw['_links'].self) {
+                    href = domainRaw['_links'].self.href;
+                    id = href.replace(/.*\/(.*)$/, '$1');
+                }
+                if (!id) {
+                    id = domainRaw.name;
+                }
+                domains[id] = new Domain({
+                    id,
+                    name: domainRaw.name,
+                    href,
+                    coreObject: this.coreObject
+                });
+                domains[id].parseResponse(domainRaw);
+            });
+            this.domains = domains;
         }
         if (dcRaw.hasOwnProperty('classVariables')) {
             let classVariables = {};
