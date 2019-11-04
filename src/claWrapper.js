@@ -1312,6 +1312,7 @@ class DataClass extends BasicFunctions {
      * @extends BasicFunctions
      *
      * @property {String} id CLA Wrapper attribute. Data class ID.
+     * @property {String} ordinal CDISC Library attribute.
      * @property {String} name CDISC Library attribute.
      * @property {String} label CDISC Library attribute.
      * @property {String} description CDISC Library attribute.
@@ -1323,9 +1324,10 @@ class DataClass extends BasicFunctions {
      * @property {String} href CDISC Library attribute.
      * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
-    constructor ({ name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject } = {}) {
+    constructor ({ ordinal, name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject } = {}) {
         super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
+        this.ordinal = ordinal;
         this.name = name;
         this.label = label;
         this.description = description;
@@ -1345,6 +1347,7 @@ class DataClass extends BasicFunctions {
      */
     parseResponse (dcRaw, domainsRaw) {
         this.name = dcRaw.name;
+        this.ordinal = dcRaw.ordinal;
         this.label = dcRaw.label;
         this.description = dcRaw.description;
         if (!this.href && dcRaw._links && dcRaw._links.self) {
