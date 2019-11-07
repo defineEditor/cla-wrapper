@@ -1321,6 +1321,26 @@ class DataStructure extends BasicFunctions {
             return convertToFormat(result, format);
         }
     }
+
+    /**
+     * Get an array or object with variable sets and their descriptions in a specific format.
+     *
+     * @param {Object} [options]  Format options.
+     * @param {Bool} [options.descriptions=false] Will return an object with variable set IDs and their labels.
+     * @returns {Object|Array} List of variable sets.
+     */
+    getVariableSetList (options = {}) {
+        const analysisVariableSets = this.analysisVariableSets || {};
+        if (typeof options === 'object' && options.descriptions) {
+            let result = {};
+            Object.keys(analysisVariableSets).forEach(id => {
+                result[id] = analysisVariableSets[id].label;
+            });
+            return result;
+        } else {
+            return Object.keys(analysisVariableSets);
+        }
+    }
 }
 
 class DataClass extends BasicFunctions {
@@ -1591,9 +1611,9 @@ class ItemGroup extends BasicFunctions {
     /**
      * Parse API response to variable set.
      *
-     * @param {Object} vsRaw Raw CDISC API response.
+     * @param {Object} itemRaw CDISC API response.
      */
-    parseResponse (itemRaw) {
+    parseItemGroupResponse (itemRaw) {
         this.name = itemRaw.name;
         this.label = itemRaw.label;
         let items = {};
@@ -1728,11 +1748,26 @@ class Dataset extends ItemGroup {
      * Dataset class. Extends ItemGroup class.
      * @extends ItemGroup
      *
+     * @property {Object} description CDISC Library attribute.
+     * @property {Object} dataStructure CDISC Library attribute.
      * @property {Object} datasetVariables CDISC Library attribute.
      */
-    constructor ({ id, name, label, datasetVariables = {}, href, coreObject } = {}) {
+    constructor ({ id, name, label, description, dataStructure, datasetVariables = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'datasetVariables', href, coreObject });
+        this.description = description;
+        this.dataStructure = dataStructure;
         this.datasetVariables = datasetVariables;
+    }
+
+    /**
+     * Parse API response to dataset
+     *
+     * @param raw Raw CDISC API response
+     */
+    parseResponse (raw) {
+        this.parseItemGroupResponse(raw);
+        this.description = raw.description;
+        this.dataStructure = raw.dataStructure;
     }
 }
 
@@ -1747,6 +1782,15 @@ class AnalysisVariableSet extends ItemGroup {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
         this.analysisVariables = analysisVariables;
     }
+
+    /**
+     * Parse API response to variable set
+     *
+     * @param raw Raw CDISC API response
+     */
+    parseResponse (raw) {
+        this.parseItemGroupResponse(raw);
+    }
 }
 
 class Domain extends ItemGroup {
@@ -1759,6 +1803,15 @@ class Domain extends ItemGroup {
     constructor ({ id, name, label, fields = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
         this.fields = fields;
+    }
+
+    /**
+     * Parse API response to domain
+     *
+     * @param raw Raw CDISC API response
+     */
+    parseResponse (raw) {
+        this.parseItemGroupResponse(raw);
     }
 }
 
