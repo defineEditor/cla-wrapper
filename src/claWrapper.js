@@ -26,35 +26,60 @@ const defaultGetItemGroupsOptions = { type: 'long' };
 class CoreObject {
     /**
      * CDISC Library Core Object which contains API request functions and technical information.
-     * @property {String} username CDISC Library username.
-     * @property {String} password CDISC Library password.
-     * @property {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library.
+     * @param {String} username CDISC Library username.
+     * @param {String} password CDISC Library password.
+     * @param {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library.
+     * @param {Object} [cache] An optional object containing functions handling cache. This object must implement the following functions:
+     * @param {Function} cache.match(request) Returns a Promise that resolves to the response associated with the matching request.
+     * @param {Function} cache.put(request&#44;response) Takes both a request and its response and adds it to the given cache.
+     * Response must contain the body attribute.
+     * Do not create connection attribute in the cached response, in order to avoid traffic count.
+     * @param {Object} [traffic] Object containing information about traffic used by the wrapper.
+     * @param {Integer} traffic.incoming Inbound traffic
+     * @param {Integer} traffic.outgoing Outbound traffic
      */
-    constructor ({ username, password, baseUrl } = {}) {
+    constructor ({ username, password, baseUrl, cache, traffic } = {}) {
         this.username = username;
         this.password = password;
+        this.cache = cache;
         if (baseUrl !== undefined) {
             this.baseUrl = baseUrl;
         } else {
             this.baseUrl = 'https://library.cdisc.org/api';
         }
-        this.traffic = {
-            incoming: 0,
-            outgoing: 0
-        };
+        if (traffic !== undefined) {
+            this.traffic = traffic;
+        } else {
+            this.traffic = {
+                incoming: 0,
+                outgoing: 0
+            };
+        }
     }
 
     /**
      * Make an API request
      *
      * @param {String} endpoint CDISC Library API endpoint.
-     * @param {Object} [headers] Optional additional headers for the request.
-     * @param {Boolean} [returnRaw=false] If true, a raw response is returned. By default the response body is returned.
+     * @param {Object} [options] Request options.
+     * @param {Object} [options.headers] Additional headers for the request.
+     * @param {Boolean} [options.returnRaw=false] If true, a raw response is returned. By default the response body is returned.
+     * @param {Boolean} [noCache=false] If true, cache will not be used for that request.
      * @returns {Object} API response, if API request failed a blank object is returned.
      */
-    async apiRequest (endpoint, headers, returnRaw = false) {
+    async apiRequest (endpoint, options = {}) {
+        // Default options
+        let headers = options.headers;
+        let returnRaw = options.returnRaw || false;
+        let noCache = options.noCache || false;
         try {
-            let response = await apiRequest({ username: this.username, password: this.password, url: this.baseUrl + endpoint, headers });
+            let response = await apiRequest({
+                username: this.username,
+                password: this.password,
+                url: this.baseUrl + endpoint,
+                headers,
+                cache: noCache ? undefined : this.cache,
+            });
             // Count traffic
             if (response.connection) {
                 this.traffic.incoming += response.connection.bytesRead;
@@ -74,7 +99,7 @@ class CoreObject {
             if (returnRaw) {
                 return { statusCode: -1, description: 'Request failed' };
             } else {
-                throw new Error('Request failed');
+                return {};
             }
         }
     }
@@ -144,11 +169,19 @@ class CdiscLibrary {
      * @param {String} params.username CDISC Library username.
      * @param {String} params.password CDISC Library password.
      * @param {String} [params.baseUrl=https://library.cdisc.org/api] A base URL for the library.
+     * @param {Object} [cache] An optional object containing functions handling cache. This object must implement the following functions:
+     * @param {Function} cache.match(request) Returns a Promise that resolves to the response associated with the matching request.
+     * @param {Function} cache.put(request&#44;response) Takes both a request and its response and adds it to the given cache.
+     * Response must contain the body attribute.
+     * Do not create connection attribute in the cached response, in order to avoid traffic count.
+     * @param {Object} [traffic] Object containing information about traffic used by the wrapper.
+     * @param {Integer} traffic.incoming Inbound traffic
+     * @param {Integer} traffic.outgoing Outbound traffic
      * @property {Object} productClasses An object with product classes.
      * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
-    constructor ({ username, password, baseUrl, productClasses } = {}) {
-        this.coreObject = new CoreObject({ username, password, baseUrl });
+    constructor ({ username, password, baseUrl, cache, traffic, productClasses } = {}) {
+        this.coreObject = new CoreObject({ username, password, baseUrl, cache, traffic });
         this.productClasses = productClasses;
     }
 
@@ -161,7 +194,7 @@ class CdiscLibrary {
         let response;
         let result;
         try {
-            response = await this.coreObject.apiRequest('/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID', undefined, true);
+            response = await this.coreObject.apiRequest('/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID', { returnRaw: true, noCache: true });
             result = { statusCode: response.statusCode };
         } catch (error) {
             response = { statusCode: -1, description: error.message };
@@ -190,15 +223,15 @@ class CdiscLibrary {
         let productClasses = {};
         let dataRaw = await this.coreObject.apiRequest('/mdr/products');
         if (dataRaw.hasOwnProperty('_links')) {
-            Object.keys(dataRaw['_links']).forEach(pcId => {
+            Object.keys(dataRaw._links).forEach(pcId => {
                 if (pcId !== 'self') {
-                    let pcRaw = dataRaw['_links'][pcId];
+                    let pcRaw = dataRaw._links[pcId];
                     productClasses[pcId] = new ProductClass({ coreObject: this.coreObject });
                     productClasses[pcId].parseResponse(pcId, pcRaw);
                 }
             });
+            this.productClasses = productClasses;
         }
-        this.productClasses = productClasses;
         return productClasses;
     }
 
@@ -405,6 +438,14 @@ class CdiscLibrary {
         });
         return result;
     }
+
+    /**
+     * Reset CDISC Library
+     */
+    reset () {
+        delete this.productClasses;
+        this.productClasses = undefined;
+    }
 }
 
 class ProductClass extends BasicFunctions {
@@ -433,9 +474,9 @@ class ProductClass extends BasicFunctions {
         this.name = name;
         let productGroups = {};
         if (pcRaw.hasOwnProperty('_links')) {
-            Object.keys(pcRaw['_links']).forEach(pgId => {
+            Object.keys(pcRaw._links).forEach(pgId => {
                 if (pgId !== 'self') {
-                    let pgRaw = pcRaw['_links'][pgId];
+                    let pgRaw = pcRaw._links[pgId];
                     productGroups[pgId] = new ProductGroup({ coreObject: this.coreObject });
                     productGroups[pgId].parseResponse(pgId, pgRaw);
                 }
@@ -731,10 +772,12 @@ class Product extends BasicFunctions {
         super();
         if (id) {
             this.id = id;
-        } else if (href.startsWith('/mdr/ct/') || href.startsWith('/mdr/adam/')) {
-            this.id = href.replace(/.*\/(.*)$/, '$1');
-        } else {
-            this.id = href.replace(/.*\/(.*)\/(.*)$/, '$1-$2');
+        } else if (href !== undefined) {
+            if (href.startsWith('/mdr/ct/') || href.startsWith('/mdr/adam/')) {
+                this.id = href.replace(/.*\/(.*)$/, '$1');
+            } else {
+                this.id = href.replace(/.*\/(.*)\/(.*)$/, '$1-$2');
+            }
         }
         this.name = name;
         this.label = title || label;
@@ -808,8 +851,8 @@ class Product extends BasicFunctions {
             let dataStructures = {};
             pRaw.dataStructures.forEach(dataStructureRaw => {
                 let href;
-                if (dataStructureRaw['_links'] && dataStructureRaw['_links'].self) {
-                    href = dataStructureRaw['_links'].self.href;
+                if (dataStructureRaw._links && dataStructureRaw._links.self) {
+                    href = dataStructureRaw._links.self.href;
                 }
                 let dataStructure = new DataStructure({
                     name: dataStructureRaw.name,
@@ -825,15 +868,21 @@ class Product extends BasicFunctions {
             let dataClasses = {};
             pRaw.classes.forEach(dataClassRaw => {
                 let href;
-                if (dataClassRaw['_links'] && dataClassRaw['_links'].self) {
-                    href = dataClassRaw['_links'].self.href;
+                if (dataClassRaw._links && dataClassRaw._links.self) {
+                    href = dataClassRaw._links.self.href;
                 }
                 let dataClass = new DataClass({
                     name: dataClassRaw.name,
                     href,
                     coreObject: this.coreObject
                 });
-                dataClass.parseResponse(dataClassRaw);
+                // CDASH structure is different from SDTM, as domains are provided separately
+                // Pass all domains, so that they can be split by class
+                if (pRaw.hasOwnProperty('domains')) {
+                    dataClass.parseResponse(dataClassRaw, pRaw.domains);
+                } else {
+                    dataClass.parseResponse(dataClassRaw);
+                }
                 dataClasses[dataClass.id] = dataClass;
             });
             this.dataClasses = dataClasses;
@@ -842,8 +891,8 @@ class Product extends BasicFunctions {
             let codelists = {};
             pRaw.classes.forEach(codeListRaw => {
                 let href;
-                if (codeListRaw['_links'] && codeListRaw['_links'].self) {
-                    href = codeListRaw['_links'].self.href;
+                if (codeListRaw._links && codeListRaw._links.self) {
+                    href = codeListRaw._links.self.href;
                 }
                 let codeList = new CodeList({
                     name: codeListRaw.name,
@@ -925,8 +974,8 @@ class Product extends BasicFunctions {
             } else {
                 let datasetsHref = `${this.href}/${this.datasetType.toLowerCase()}`;
                 let itemGroupsRaw = await this.coreObject.apiRequest(datasetsHref);
-                if (itemGroupsRaw && itemGroupsRaw['_links'] && itemGroupsRaw['_links'][this.datasetType]) {
-                    itemGroupsRaw['_links'][this.datasetType].forEach(dsRaw => {
+                if (itemGroupsRaw && itemGroupsRaw._links && itemGroupsRaw._links[this.datasetType]) {
+                    itemGroupsRaw._links[this.datasetType].forEach(dsRaw => {
                         let name = dsRaw.href.replace(/.*\/(.*)$/, '$1');
                         result[name] = { name, label: dsRaw.title };
                     });
@@ -958,12 +1007,8 @@ class Product extends BasicFunctions {
         if (this.dataStructures) {
             return this.dataStructures;
         } else if (this.dataClasses) {
-            Object.values(this.dataClasses).forEach(obj => {
-                if (this.model === 'CDASH') {
-                    result = { ...result, ...obj.domains };
-                } else if (this.model === 'SDTM' || this.model === 'SEND') {
-                    result = { ...result, ...obj.datasets };
-                }
+            Object.values(this.dataClasses).forEach(dataClass => {
+                result = { ...result, ...dataClass.getItemGroups() };
             });
         }
         return result;
@@ -1022,8 +1067,8 @@ class Product extends BasicFunctions {
                     result.parseResponse(dsRaw);
                 }
                 // Create a class to add this itemgroup to the main object
-                if (dsRaw['_links'] && dsRaw['_links'].parentClass) {
-                    let dcRaw = dsRaw['_links'].parentClass;
+                if (dsRaw._links && dsRaw._links.parentClass) {
+                    let dcRaw = dsRaw._links.parentClass;
                     let dataClass = new DataClass({
                         ...dcRaw,
                         coreObject: this.coreObject
@@ -1197,8 +1242,8 @@ class DataStructure extends BasicFunctions {
             dsRaw.analysisVariableSets.forEach(analysisVariableSetRaw => {
                 let href;
                 let id;
-                if (analysisVariableSetRaw['_links'] && analysisVariableSetRaw['_links'].self) {
-                    href = analysisVariableSetRaw['_links'].self.href;
+                if (analysisVariableSetRaw._links && analysisVariableSetRaw._links.self) {
+                    href = analysisVariableSetRaw._links.self.href;
                     id = href.replace(/.*\/(.*)$/, '$1');
                 }
                 if (!id) {
@@ -1274,6 +1319,26 @@ class DataStructure extends BasicFunctions {
             return convertToFormat(result, format);
         }
     }
+
+    /**
+     * Get an array or object with variable sets and their descriptions in a specific format.
+     *
+     * @param {Object} [options]  Format options.
+     * @param {Bool} [options.descriptions=false] Will return an object with variable set IDs and their labels.
+     * @returns {Object|Array} List of variable sets.
+     */
+    getVariableSetList (options = {}) {
+        const analysisVariableSets = this.analysisVariableSets || {};
+        if (typeof options === 'object' && options.descriptions) {
+            let result = {};
+            Object.keys(analysisVariableSets).forEach(id => {
+                result[id] = analysisVariableSets[id].label;
+            });
+            return result;
+        } else {
+            return Object.keys(analysisVariableSets);
+        }
+    }
 }
 
 class DataClass extends BasicFunctions {
@@ -1282,6 +1347,7 @@ class DataClass extends BasicFunctions {
      * @extends BasicFunctions
      *
      * @property {String} id CLA Wrapper attribute. Data class ID.
+     * @property {String} ordinal CDISC Library attribute.
      * @property {String} name CDISC Library attribute.
      * @property {String} label CDISC Library attribute.
      * @property {String} description CDISC Library attribute.
@@ -1293,9 +1359,10 @@ class DataClass extends BasicFunctions {
      * @property {String} href CDISC Library attribute.
      * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
-    constructor ({ name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject } = {}) {
+    constructor ({ ordinal, name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject } = {}) {
         super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
+        this.ordinal = ordinal;
         this.name = name;
         this.label = label;
         this.description = description;
@@ -1311,18 +1378,23 @@ class DataClass extends BasicFunctions {
      * Parse API response to data structure
      *
      * @param {Object} dcRaw Raw CDISC API response
+     * @param {Object} domainsRaw Raw CDISC API response with domains, used for CDASH endpoints
      */
-    parseResponse (dcRaw) {
+    parseResponse (dcRaw, domainsRaw) {
         this.name = dcRaw.name;
+        this.ordinal = dcRaw.ordinal;
         this.label = dcRaw.label;
         this.description = dcRaw.description;
+        if (!this.href && dcRaw._links && dcRaw._links.self) {
+            this.href = dcRaw._links.self.href;
+        }
         if (dcRaw.hasOwnProperty('datasets')) {
             let datasets = {};
             dcRaw.datasets.forEach(datasetRaw => {
                 let href;
                 let id;
-                if (datasetRaw['_links'] && datasetRaw['_links'].self) {
-                    href = datasetRaw['_links'].self.href;
+                if (datasetRaw._links && datasetRaw._links.self) {
+                    href = datasetRaw._links.self.href;
                     id = href.replace(/.*\/(.*)$/, '$1');
                 }
                 if (!id) {
@@ -1338,26 +1410,33 @@ class DataClass extends BasicFunctions {
             });
             this.datasets = datasets;
         }
-        if (dcRaw.hasOwnProperty('domains')) {
+        if (dcRaw.hasOwnProperty('domains') || domainsRaw !== undefined) {
+            let rawDomains = dcRaw.domains || domainsRaw;
             let domains = {};
-            dcRaw.domains.forEach(domainRaw => {
-                let href;
-                let id;
-                if (domainRaw['_links'] && domainRaw['_links'].self) {
-                    href = domainRaw['_links'].self.href;
-                    id = href.replace(/.*\/(.*)$/, '$1');
-                }
-                if (!id) {
-                    id = domainRaw.name;
-                }
-                domains[id] = new Domain({
-                    id,
-                    name: domainRaw.name,
-                    href,
-                    coreObject: this.coreObject
+            rawDomains
+                .filter(domainRaw => {
+                    if (domainRaw._links && domainRaw._links.parentClass) {
+                        return domainRaw._links.parentClass.href === this.href;
+                    }
+                })
+                .forEach(domainRaw => {
+                    let href;
+                    let id;
+                    if (domainRaw._links && domainRaw._links.self) {
+                        href = domainRaw._links.self.href;
+                        id = href.replace(/.*\/(.*)$/, '$1');
+                    }
+                    if (!id) {
+                        id = domainRaw.name;
+                    }
+                    domains[id] = new Domain({
+                        id,
+                        name: domainRaw.name,
+                        href,
+                        coreObject: this.coreObject
+                    });
+                    domains[id].parseResponse(domainRaw);
                 });
-                domains[id].parseResponse(domainRaw);
-            });
             this.domains = domains;
         }
         if (dcRaw.hasOwnProperty('classVariables')) {
@@ -1365,8 +1444,8 @@ class DataClass extends BasicFunctions {
             if (dcRaw.hasOwnProperty('classVariables')) {
                 dcRaw.classVariables.forEach(variableRaw => {
                     let href;
-                    if (variableRaw['_links'] && variableRaw['_links'].self) {
-                        href = variableRaw['_links'].self.href;
+                    if (variableRaw._links && variableRaw._links.self) {
+                        href = variableRaw._links.self.href;
                     }
                     let variable = new Variable({
                         name: variableRaw.name,
@@ -1384,8 +1463,8 @@ class DataClass extends BasicFunctions {
             if (dcRaw.hasOwnProperty('cdashModelFields')) {
                 dcRaw.cdashModelFields.forEach(fieldRaw => {
                     let href;
-                    if (fieldRaw['_links'] && fieldRaw['_links'].self) {
-                        href = fieldRaw['_links'].self.href;
+                    if (fieldRaw._links && fieldRaw._links.self) {
+                        href = fieldRaw._links.self.href;
                     }
                     let field = new Field({
                         name: fieldRaw.name,
@@ -1403,13 +1482,20 @@ class DataClass extends BasicFunctions {
     /**
      * Get an object with all variables/fields for that data structure
      *
+     * @param {Object} [options] Additional options.
+     * @param {Boolean} [options.immediate=false] Include only class variables/model fields and exclude items from datasets or domains.
      * @returns {Object} An object with variables/fields
      */
-    getItems () {
+    getItems (options = { immediate: false }) {
         let result = {};
-        if (this.datasets) {
+        if (this.datasets && !options.immediate) {
             Object.values(this.datasets).forEach(dataset => {
                 result = { ...result, ...dataset.getItems() };
+            });
+        }
+        if (this.domains && !options.immediate) {
+            Object.values(this.domains).forEach(domain => {
+                result = { ...result, ...domain.getItems() };
             });
         }
         if (this.classVariables) {
@@ -1421,6 +1507,21 @@ class DataClass extends BasicFunctions {
             Object.values(this.cdashModelFields).forEach(field => {
                 result[field.id] = field;
             });
+        }
+        return result;
+    }
+
+    /**
+     * Get an object with all datasets/domains
+     *
+     * @returns {Object} An object with datasets/domains
+     */
+    getItemGroups () {
+        let result = {};
+        if (typeof this.domains === 'object' && Object.keys(this.domains).length > 0) {
+            result = { ...result, ...this.domains };
+        } else if (typeof this.datasets === 'object' && Object.keys(this.datasets).length > 0) {
+            result = { ...result, ...this.datasets };
         }
         return result;
     }
@@ -1508,17 +1609,17 @@ class ItemGroup extends BasicFunctions {
     /**
      * Parse API response to variable set.
      *
-     * @param {Object} vsRaw Raw CDISC API response.
+     * @param {Object} itemRaw CDISC API response.
      */
-    parseResponse (itemRaw) {
+    parseItemGroupResponse (itemRaw) {
         this.name = itemRaw.name;
         this.label = itemRaw.label;
         let items = {};
         if (itemRaw.hasOwnProperty(this.itemType)) {
             itemRaw[this.itemType].forEach(itemRaw => {
                 let href;
-                if (itemRaw['_links'] && itemRaw['_links'].self) {
-                    href = itemRaw['_links'].self.href;
+                if (itemRaw._links && itemRaw._links.self) {
+                    href = itemRaw._links.self.href;
                 }
                 let item;
                 if (this.itemType === 'fields') {
@@ -1645,11 +1746,26 @@ class Dataset extends ItemGroup {
      * Dataset class. Extends ItemGroup class.
      * @extends ItemGroup
      *
+     * @property {Object} description CDISC Library attribute.
+     * @property {Object} dataStructure CDISC Library attribute.
      * @property {Object} datasetVariables CDISC Library attribute.
      */
-    constructor ({ id, name, label, datasetVariables = {}, href, coreObject } = {}) {
+    constructor ({ id, name, label, description, dataStructure, datasetVariables = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'datasetVariables', href, coreObject });
+        this.description = description;
+        this.dataStructure = dataStructure;
         this.datasetVariables = datasetVariables;
+    }
+
+    /**
+     * Parse API response to dataset
+     *
+     * @param raw Raw CDISC API response
+     */
+    parseResponse (raw) {
+        this.parseItemGroupResponse(raw);
+        this.description = raw.description;
+        this.dataStructure = raw.dataStructure;
     }
 }
 
@@ -1664,6 +1780,15 @@ class AnalysisVariableSet extends ItemGroup {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
         this.analysisVariables = analysisVariables;
     }
+
+    /**
+     * Parse API response to variable set
+     *
+     * @param raw Raw CDISC API response
+     */
+    parseResponse (raw) {
+        this.parseItemGroupResponse(raw);
+    }
 }
 
 class Domain extends ItemGroup {
@@ -1676,6 +1801,15 @@ class Domain extends ItemGroup {
     constructor ({ id, name, label, fields = {}, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
         this.fields = fields;
+    }
+
+    /**
+     * Parse API response to domain
+     *
+     * @param raw Raw CDISC API response
+     */
+    parseResponse (raw) {
+        this.parseItemGroupResponse(raw);
     }
 }
 
@@ -1764,7 +1898,7 @@ class Item extends BasicFunctions {
         super();
         if (id) {
             this.id = id;
-        } else {
+        } else if (href !== undefined) {
             // Get datastructure/dataset/domain abbreviation
             if (/\/(?:datastructures|datasets|domains)\//.test(href)) {
                 this.id = href.replace(/.*\/(?:datastructures|datasets|domains)\/(.*?)\/.*\/(.*)$/, '$1.$2');
@@ -1925,6 +2059,24 @@ class Field extends Item {
                 this.sdtmigDatasetMappingTargetsHref = fRaw._links.sdtmigDatasetMappingTargets.href;
             }
         }
+    }
+
+    /**
+     * Export class as a string.
+     *
+     * @returns {String} String representation of an object.
+     */
+    export () {
+        return JSON.stringify(this.toSimpleObject());
+    }
+
+    /**
+     * Import
+     *
+     * @param importString {String} Import string.
+     */
+    import (importString, coreObject) {
+        this.constructor({ ...JSON.parse(importString), coreObject });
     }
 }
 
