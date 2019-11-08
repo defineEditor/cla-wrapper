@@ -31,8 +31,7 @@ class CoreObject {
      * @param {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library.
      * @param {Object} [cache] An optional object containing functions handling cache. This object must implement the following functions:
      * @param {Function} cache.match(request) Returns a Promise that resolves to the response associated with the matching request.
-     * @param {Function} cache.put(request, response) Takes both a request and its response and adds it to the given cache.
-     * @param {Function} cache.delete(request) Deletes cache record corresponding to the request.
+     * @param {Function} cache.put(request&#44;response) Takes both a request and its response and adds it to the given cache.
      * Response must contain the body attribute.
      * Do not create connection attribute in the cached response, in order to avoid traffic count.
      * @param {Object} [traffic] Object containing information about traffic used by the wrapper.
@@ -172,8 +171,7 @@ class CdiscLibrary {
      * @param {String} [params.baseUrl=https://library.cdisc.org/api] A base URL for the library.
      * @param {Object} [cache] An optional object containing functions handling cache. This object must implement the following functions:
      * @param {Function} cache.match(request) Returns a Promise that resolves to the response associated with the matching request.
-     * @param {Function} cache.put(request, response) Takes both a request and its response and adds it to the given cache.
-     * @param {Function} cache.delete(request) Deletes cache record corresponding to the request.
+     * @param {Function} cache.put(request&#44;response) Takes both a request and its response and adds it to the given cache.
      * Response must contain the body attribute.
      * Do not create connection attribute in the cached response, in order to avoid traffic count.
      * @param {Object} [traffic] Object containing information about traffic used by the wrapper.
