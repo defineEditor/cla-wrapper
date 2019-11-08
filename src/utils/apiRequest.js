@@ -1,8 +1,8 @@
 const { promisify } = require('util');
 const request = promisify(require('request'));
 
-const apiRequest = ({ username, password, url, headers = {} }) => {
-    let options = {
+const apiRequest = async ({ username, password, url, headers = {}, cache }) => {
+    let req = {
         url,
         headers: {
             ...headers,
@@ -14,7 +14,21 @@ const apiRequest = ({ username, password, url, headers = {} }) => {
             'sendImmediately': false
         }
     };
-    return request(options);
+    let response = {};
+    if (cache !== undefined && typeof cache.match === 'function') {
+        // If cache function is available, check cache first
+        response = await cache.match(req);
+        if (response === undefined) {
+            response = await request(req);
+            // Add the reponse to cache
+            if (response.statusCode === 200) {
+                cache.put(req, response);
+            }
+        }
+    } else {
+        response = await request(req);
+    }
+    return response;
 };
 
 module.exports = apiRequest;
