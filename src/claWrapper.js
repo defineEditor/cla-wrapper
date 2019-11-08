@@ -2060,24 +2060,6 @@ class Field extends Item {
             }
         }
     }
-
-    /**
-     * Export class as a string.
-     *
-     * @returns {String} String representation of an object.
-     */
-    export () {
-        return JSON.stringify(this.toSimpleObject());
-    }
-
-    /**
-     * Import
-     *
-     * @param importString {String} Import string.
-     */
-    import (importString, coreObject) {
-        this.constructor({ ...JSON.parse(importString), coreObject });
-    }
 }
 
 module.exports = {
