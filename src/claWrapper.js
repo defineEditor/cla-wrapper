@@ -795,7 +795,11 @@ class Product extends BasicFunctions {
         if (version) {
             this.version = version;
         } else if (/(\d+-?)+$/.test(href)) {
-            this.version = href.replace(/.*?(\d[\d-]*$)/, '$1').replace('-', '.');
+            if (this.type === 'Terminology') {
+                this.version = href.replace(/.*?(\d[\d-]*$)/, '$1');
+            } else {
+                this.version = href.replace(/.*?(\d[\d-]*$)/, '$1').replace(/-/g, '.');
+            }
         }
         if (model) {
             this.model = model;
