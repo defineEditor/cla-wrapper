@@ -812,6 +812,8 @@ class Product extends BasicFunctions {
                 this.model = 'SEND';
             } else if (this.id.startsWith('cdash')) {
                 this.model = 'CDASH';
+            } else if (this.type === 'Terminology') {
+                this.model = 'SDTM';
             }
         }
         if (datasetType) {
@@ -893,7 +895,7 @@ class Product extends BasicFunctions {
         }
         if (pRaw.hasOwnProperty('codelists')) {
             let codelists = {};
-            pRaw.classes.forEach(codeListRaw => {
+            pRaw.codelists.forEach(codeListRaw => {
                 let href;
                 if (codeListRaw._links && codeListRaw._links.self) {
                     href = codeListRaw._links.self.href;
