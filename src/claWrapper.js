@@ -194,13 +194,28 @@ class CdiscLibrary {
         let response;
         let result;
         try {
-            response = await this.coreObject.apiRequest('/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID', { returnRaw: true, noCache: true });
+            response = await this.coreObject.apiRequest('/health', { returnRaw: true, noCache: true });
             result = { statusCode: response.statusCode };
         } catch (error) {
             response = { statusCode: -1, description: error.message };
         }
         if (response.statusCode === 200) {
-            result.description = 'OK';
+            let data;
+            try {
+                data = JSON.parse(response.body);
+                if (data.healthy === true) {
+                    result.description = 'OK';
+                } else if (data.healthy === false) {
+                    result.statusCode = -1;
+                    result.description = 'CDISC Library status is unhealthy';
+                } else {
+                    result.statusCode = -1;
+                    result.description = 'Unexpected status from the /health endpoint';
+                }
+            } catch (error) {
+                result.statusCode = -1;
+                result.description = 'Check valid Basa URL is used';
+            }
         } else if (response.statusCode === 401) {
             result.description = 'Authentication failed';
         } else if (response.statusCode === 404) {
