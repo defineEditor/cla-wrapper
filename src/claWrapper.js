@@ -194,13 +194,28 @@ class CdiscLibrary {
         let response;
         let result;
         try {
-            response = await this.coreObject.apiRequest('/mdr/adam/adamig-1-1/datastructures/ADSL/variables/USUBJID', { returnRaw: true, noCache: true });
+            response = await this.coreObject.apiRequest('/health', { returnRaw: true, noCache: true });
             result = { statusCode: response.statusCode };
         } catch (error) {
             response = { statusCode: -1, description: error.message };
         }
         if (response.statusCode === 200) {
-            result.description = 'OK';
+            let data;
+            try {
+                data = JSON.parse(response.body);
+                if (data.healthy === true) {
+                    result.description = 'OK';
+                } else if (data.healthy === false) {
+                    result.statusCode = -1;
+                    result.description = 'CDISC Library status is unhealthy';
+                } else {
+                    result.statusCode = -1;
+                    result.description = 'Unexpected status from the /health endpoint';
+                }
+            } catch (error) {
+                result.statusCode = -1;
+                result.description = 'Check valid Basa URL is used';
+            }
         } else if (response.statusCode === 401) {
             result.description = 'Authentication failed';
         } else if (response.statusCode === 404) {
@@ -795,7 +810,11 @@ class Product extends BasicFunctions {
         if (version) {
             this.version = version;
         } else if (/(\d+-?)+$/.test(href)) {
-            this.version = href.replace(/.*?(\d[\d-]*$)/, '$1').replace('-', '.');
+            if (this.type === 'Terminology') {
+                this.version = href.replace(/.*?(\d[\d-]*$)/, '$1');
+            } else {
+                this.version = href.replace(/.*?(\d[\d-]*$)/, '$1').replace(/-/g, '.');
+            }
         }
         if (model) {
             this.model = model;
@@ -808,6 +827,8 @@ class Product extends BasicFunctions {
                 this.model = 'SEND';
             } else if (this.id.startsWith('cdash')) {
                 this.model = 'CDASH';
+            } else if (this.type === 'Terminology') {
+                this.model = 'SDTM';
             }
         }
         if (datasetType) {
@@ -889,7 +910,7 @@ class Product extends BasicFunctions {
         }
         if (pRaw.hasOwnProperty('codelists')) {
             let codelists = {};
-            pRaw.classes.forEach(codeListRaw => {
+            pRaw.codelists.forEach(codeListRaw => {
                 let href;
                 if (codeListRaw._links && codeListRaw._links.self) {
                     href = codeListRaw._links.self.href;
@@ -2059,24 +2080,6 @@ class Field extends Item {
                 this.sdtmigDatasetMappingTargetsHref = fRaw._links.sdtmigDatasetMappingTargets.href;
             }
         }
-    }
-
-    /**
-     * Export class as a string.
-     *
-     * @returns {String} String representation of an object.
-     */
-    export () {
-        return JSON.stringify(this.toSimpleObject());
-    }
-
-    /**
-     * Import
-     *
-     * @param importString {String} Import string.
-     */
-    import (importString, coreObject) {
-        this.constructor({ ...JSON.parse(importString), coreObject });
     }
 }
 
