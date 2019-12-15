@@ -1456,7 +1456,7 @@ class DataClass extends BasicFunctions {
                         href,
                         coreObject: this.coreObject
                     });
-                    domains[id].parseResponse(domainRaw);
+                    domains[id].parseResponse(domainRaw, dcRaw.scenarios);
                 });
             this.domains = domains;
         }
@@ -1671,7 +1671,8 @@ class ItemGroup extends BasicFunctions {
     }
 
     /**
-     * Get an object with all variables/fields for that item set.
+     * Get an object with all variables/fields for that item set. Note that for CDASHIG Scenarios have overlapping fields.
+    *  Only one field is returned by this method.
      *
      * @returns {Object} An object with variables/fields.
      */
@@ -1680,6 +1681,11 @@ class ItemGroup extends BasicFunctions {
         if (this[this.itemType]) {
             Object.values(this[this.itemType]).forEach(item => {
                 result[item.id] = item;
+            });
+        }
+        if (this.scenarios) {
+            Object.values(this.scenarios).forEach(scenario => {
+                result = { ...result, ...scenario.getItems() };
             });
         }
         return result;
@@ -1695,6 +1701,15 @@ class ItemGroup extends BasicFunctions {
         if (this[this.itemType]) {
             Object.values(this[this.itemType]).forEach(item => {
                 result.push(item.name);
+            });
+        }
+        if (this.scenarios) {
+            Object.values(this.scenarios).forEach(scenario => {
+                result = result.concat(scenario.getNameList());
+            });
+            // Remove duplicates
+            result = result.filter((item, pos) => {
+                return result.indexOf(item) === pos;
             });
         }
         return result;
@@ -1721,6 +1736,11 @@ class ItemGroup extends BasicFunctions {
                         return true;
                     }
                 }
+            });
+        }
+        if (this.scenarios) {
+            Object.values(this.scenarios).forEach(scenario => {
+                result = result.concat(scenario.findMatchingItems(name, options));
             });
         }
         return result;
@@ -1818,10 +1838,66 @@ class Domain extends ItemGroup {
      * @extends ItemGroup
      *
      * @property {Object} fields CDISC Library attribute.
+     * @property {Object} scenarios CDISC Library attribute. Value of _links.scenarios.
      */
-    constructor ({ id, name, label, fields = {}, href, coreObject } = {}) {
+    constructor ({ id, name, label, fields = {}, scenarios, href, coreObject } = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
         this.fields = fields;
+        this.scenarios = scenarios;
+    }
+
+    /**
+     * Parse API response to domain
+     *
+     * @param raw Raw CDISC API response
+     * @param scenariosRaw Object with scenarios
+    */
+    parseResponse (raw, scenariosRaw) {
+        this.parseItemGroupResponse(raw);
+        if (raw._links && Array.isArray(raw._links.scenarios)) {
+            let scenarios = {};
+            raw._links.scenarios.forEach(scenarioRaw => {
+                let scenario = new Scenario({
+                    href: scenarioRaw.href,
+                    coreObject: this.coreObject,
+                });
+                if (Array.isArray(scenariosRaw)) {
+                    scenariosRaw.some(scRaw => {
+                        if (scRaw._links && scRaw._links.self && scRaw._links.self.href === scenario.href) {
+                            scenario.parseResponse(scRaw);
+                            return true;
+                        }
+                    });
+                }
+                scenarios[scenario.id] = scenario;
+            });
+            this.scenarios = scenarios;
+        }
+    }
+}
+
+class Scenario {
+    /**
+     * Scenario class.
+     *
+     * @property {Object} domain CDISC Library attribute.
+     * @property {Object} scenario CDISC Library attribute.
+     * @property {String} type CDISC Library attribute. Value of the _links.self.type.
+     * @property {Object} fields CDISC Library attribute.
+     * @property {String} id CLA Wrapper attribute. Item group class ID.
+     */
+    constructor ({ id, domain, scenario, type, fields = {}, href, coreObject } = {}) {
+        if (id) {
+            this.id = id;
+        } else if (href) {
+            this.id = href.replace(/.*\/(.*)$/, '$1');
+        }
+        this.domain = domain;
+        this.scenario = scenario;
+        this.type = type;
+        this.fields = fields;
+        this.href = href;
+        this.coreObject = coreObject;
     }
 
     /**
@@ -1830,7 +1906,61 @@ class Domain extends ItemGroup {
      * @param raw Raw CDISC API response
      */
     parseResponse (raw) {
-        this.parseItemGroupResponse(raw);
+        this.domain = raw.domain;
+        this.scenario = raw.scenario;
+        let items = {};
+        if (Array.isArray(raw.fields)) {
+            raw.fields.forEach(itemRaw => {
+                let href;
+                if (itemRaw._links && itemRaw._links.self) {
+                    href = itemRaw._links.self.href;
+                }
+                let item = new Field({
+                    name: itemRaw.name,
+                    href,
+                    coreObject: this.coreObject
+                });
+                item.parseResponse(itemRaw);
+                items[item.id] = item;
+            });
+        }
+        if (raw.hasOwnProperty('_links')) {
+            if (raw._links.self && raw._links.self.type) {
+                this.type = raw._links.self.type;
+            }
+        }
+        this.fields = items;
+    }
+
+    /**
+     * Get an object with all variables/fields for that item set.
+     *
+     * @returns {Object} An object with variables/fields.
+     */
+    getItems () {
+        return ((new Domain(this)).getItems());
+    }
+
+    /**
+     * Get an array with the list of names for all items.
+     *
+     * @returns {Array} An array with item names.
+     */
+    getNameList () {
+        return ((new Domain(this)).getNameList());
+    }
+
+    /**
+     * Find all matching variables/fields. For example TRxxPGy matches TR01PG12.
+     *
+     * @param {String} name Variable/Field name.
+     * @param {Object} [options]  Matching options.
+     * @param {String} [options.mode=full] Match only full names, partial - match partial names.
+     * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
+     * @returns {Array} Array of matched items.
+     */
+    findMatchingItems (name, options) {
+        return ((new Domain(this)).findMatchingItems(name, options));
     }
 }
 
