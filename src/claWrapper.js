@@ -64,7 +64,7 @@ class CoreObject {
      * @param {Object} [options] Request options.
      * @param {Object} [options.headers] Additional headers for the request.
      * @param {Boolean} [options.returnRaw=false] If true, a raw response is returned. By default the response body is returned.
-     * @param {Boolean} [noCache=false] If true, cache will not be used for that request.
+     * @param {Boolean} [options.noCache=false] If true, cache will not be used for that request.
      * @returns {Object} API response, if API request failed a blank object is returned.
      */
     async apiRequest (endpoint, options = {}) {
