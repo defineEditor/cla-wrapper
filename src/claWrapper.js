@@ -761,7 +761,7 @@ class Product extends BasicFunctions {
      * Product class
      * @extends BasicFunctions
      *
-     * @property {String} id CLA Wrapper attribute. Data structure ID.
+     * @property {String} id CLA Wrapper attribute. Product ID.
      * @property {String} name CDISC Library attribute.
      * @property {String} label CDISC Library attribute.
      * @property {String} title CDISC Library attribute.
@@ -1056,10 +1056,10 @@ class Product extends BasicFunctions {
         });
         if (datasetId) {
             result = loadedDatasets[datasetId];
-        } else {
+        } else if (!this.fullyLoaded) {
             let href = `${this.href}/${this.datasetType.toLowerCase()}/${name.toUpperCase()}`;
             let dsRaw = await this.coreObject.apiRequest(href);
-            if (dsRaw === null) {
+            if (Object.keys(dsRaw) === 0) {
                 // Dataset not found
                 return null;
             }
