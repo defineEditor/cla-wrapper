@@ -5,8 +5,8 @@ const apiRequest = async ({ username, password, url, headers = {}, cache }) => {
     let req = {
         url,
         headers: {
-            ...headers,
             'Accept': 'application/json',
+            ...headers,
         },
         auth: {
             'user': username,

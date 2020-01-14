@@ -64,7 +64,7 @@ class CoreObject {
      * @param {Object} [options] Request options.
      * @param {Object} [options.headers] Additional headers for the request.
      * @param {Boolean} [options.returnRaw=false] If true, a raw response is returned. By default the response body is returned.
-     * @param {Boolean} [noCache=false] If true, cache will not be used for that request.
+     * @param {Boolean} [options.noCache=false] If true, cache will not be used for that request.
      * @returns {Object} API response, if API request failed a blank object is returned.
      */
     async apiRequest (endpoint, options = {}) {
@@ -761,7 +761,7 @@ class Product extends BasicFunctions {
      * Product class
      * @extends BasicFunctions
      *
-     * @property {String} id CLA Wrapper attribute. Data structure ID.
+     * @property {String} id CLA Wrapper attribute. Product ID.
      * @property {String} name CDISC Library attribute.
      * @property {String} label CDISC Library attribute.
      * @property {String} title CDISC Library attribute.
@@ -1056,10 +1056,10 @@ class Product extends BasicFunctions {
         });
         if (datasetId) {
             result = loadedDatasets[datasetId];
-        } else {
+        } else if (!this.fullyLoaded) {
             let href = `${this.href}/${this.datasetType.toLowerCase()}/${name.toUpperCase()}`;
             let dsRaw = await this.coreObject.apiRequest(href);
-            if (dsRaw === null) {
+            if (Object.keys(dsRaw) === 0) {
                 // Dataset not found
                 return null;
             }
