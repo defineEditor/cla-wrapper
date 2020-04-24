@@ -1,6 +1,6 @@
 {
     "name": "cla-wrapper",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "description": "Wrapper for CDISC Library API",
     "main": "src/claWrapper.js",
     "scripts": {
@@ -30,7 +30,7 @@
     "license": "MIT",
     "dependencies": {
         "json2csv": "^4.5.2",
-        "request": "^2.88.0"
+        "request": "^2.88.2"
     },
     "devDependencies": {
         "docdash": "^1.1.1"

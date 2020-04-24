@@ -194,7 +194,7 @@ class CdiscLibrary {
         let response;
         let result;
         try {
-            response = await this.coreObject.apiRequest('/health', { returnRaw: true, noCache: true });
+            response = await this.coreObject.apiRequest('/mdr/lastupdated', { returnRaw: true, noCache: true });
             result = { statusCode: response.statusCode };
         } catch (error) {
             response = { statusCode: -1, description: error.message };
@@ -203,14 +203,11 @@ class CdiscLibrary {
             let data;
             try {
                 data = JSON.parse(response.body);
-                if (data.healthy === true) {
+                if (data.overall !== undefined) {
                     result.description = 'OK';
-                } else if (data.healthy === false) {
-                    result.statusCode = -1;
-                    result.description = 'CDISC Library status is unhealthy';
                 } else {
                     result.statusCode = -1;
-                    result.description = 'Unexpected status from the /health endpoint';
+                    result.description = 'Could not connect';
                 }
             } catch (error) {
                 result.statusCode = -1;
@@ -222,6 +219,28 @@ class CdiscLibrary {
             result.description = 'Resource not found';
         } else {
             result.description = 'Unknown';
+        }
+        return result;
+    }
+
+    /**
+     * Get the latest update date
+     *
+     * @returns {Object} Returns object with update dates
+     */
+    async getLastUpdated () {
+        let response;
+        let result = {};
+        try {
+            response = await this.coreObject.apiRequest('/mdr/lastupdated', { noCache: true });
+            if (response !== undefined) {
+                result = response;
+                if (result._links) {
+                    delete result._links;
+                }
+            }
+        } catch (error) {
+            return result;
         }
         return result;
     }
@@ -776,13 +795,14 @@ class Product extends BasicFunctions {
      * @property {String} href CDISC Library attribute.
      * @property {String} model CLA Wrapper attribute. Model of the product (e.g., ADaM, SDTM, SEND, CDASH)
      * @property {String} datasetType CLA Wrapper attribute. Name of the attribute which contains child groups (e.g., dataStructures, dataClasses, domains, codelits)
+     * @property {Object} dependencies CLA Wrapper attribute. Model and Prior version.
      * @property {Boolean} fullyLoaded CLA Wrapper attribute. Set to TRUE when the product is fully loaded, FALSE otherwise.
      * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
     constructor ({
         id, name, title, label, type, description, source, effectiveDate,
         registrationStatus, version, dataClasses, dataStructures, codelists, href,
-        coreObject, model, datasetType, fullyLoaded = false,
+        coreObject, model, datasetType, fullyLoaded = false, dependencies
     } = {}) {
         super();
         if (id) {
@@ -854,6 +874,7 @@ class Product extends BasicFunctions {
             this.dataClasses = {};
         }
         this.fullyLoaded = fullyLoaded;
+        this.dependencies = dependencies;
     }
 
     /**
@@ -924,6 +945,23 @@ class Product extends BasicFunctions {
                 codelists[codeList.conceptId] = codeList;
             });
             this.codelists = codelists;
+        }
+        if (pRaw._links) {
+            let dependencies = {};
+            Object.keys(pRaw._links).forEach(link => {
+                if (link === 'self') {
+                    return;
+                } else {
+                    dependencies[link] = { ...pRaw._links[link] };
+                    let href = pRaw._links[link].href;
+                    if (href.startsWith('/mdr/ct/') || href.startsWith('/mdr/adam/')) {
+                        dependencies[link].id = href.replace(/.*\/(.*)$/, '$1');
+                    } else {
+                        dependencies[link].id = href.replace(/.*\/(.*)\/(.*)$/, '$1-$2');
+                    }
+                }
+            });
+            this.dependencies = dependencies;
         }
     }
 
@@ -2026,6 +2064,25 @@ class CodeList extends BasicFunctions {
      */
     getFormattedTerms (format = 'json') {
         return convertToFormat(this.terms, format);
+    }
+
+    /**
+     * Get the list of codelist versions.
+     *
+     * @returns {Array} List of CT versions.
+     */
+    async getVersions () {
+        let result = [];
+        if (this.conceptId) {
+            let rootHref = '/mdr/root/ct/sdtmct/codelists/' + this.conceptId;
+            let response = await this.coreObject.apiRequest(rootHref);
+            if (typeof response === 'object' && response._links && Array.isArray(response._links.versions)) {
+                response._links.versions.forEach(version => {
+                    result.push(version.href.replace(/.*\/mdr\/ct\/packages\/(.*?)\/.*/, '$1'));
+                });
+            }
+        }
+        return result;
     }
 }
 
