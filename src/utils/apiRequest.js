@@ -2,18 +2,22 @@ const { promisify } = require('util');
 const request = promisify(require('request'));
 
 const apiRequest = async ({ username, password, url, headers = {}, cache }) => {
-    let req = {
+    const req = {
         url,
         headers: {
-            'Accept': 'application/json',
+            Accept: 'application/json',
             ...headers,
         },
         auth: {
-            'user': username,
-            'pass': password,
-            'sendImmediately': false
+            user: username,
+            pass: password,
+            sendImmediately: false
         }
     };
+    if (headers.Accept && headers.Accept === 'application/vnd.ms-excel') {
+        // Set encoding to null, as response is binary
+        req.encoding = null;
+    }
     let response = {};
     if (cache !== undefined && typeof cache.match === 'function') {
         // If cache function is available, check cache first
