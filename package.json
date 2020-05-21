@@ -1,6 +1,6 @@
 {
     "name": "cla-wrapper",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "description": "Wrapper for CDISC Library API",
     "main": "src/claWrapper.js",
     "scripts": {
@@ -33,6 +33,12 @@
         "request": "^2.88.2"
     },
     "devDependencies": {
-        "docdash": "^1.1.1"
+        "docdash": "^1.1.1",
+        "eslint": "^7.0.0",
+        "eslint-config-standard": "^14.1.1",
+        "eslint-plugin-import": "^2.20.2",
+        "eslint-plugin-node": "^11.1.0",
+        "eslint-plugin-promise": "^4.2.1",
+        "eslint-plugin-standard": "^4.0.1"
     }
 }

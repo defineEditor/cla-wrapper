@@ -10,7 +10,6 @@ const matchItem = (name, item, mode) => {
     let result = false;
     if (mode === 'full' || (mode === 'partial' && (item.name.includes('*') || item.name.includes('-')))) {
         // For *DT even in partial mode a full comparison is used, otherwise it makes no sense as everything will match *
-        let regex;
         let pattern;
         if (/[-*wxyz]/.test(item.name)) {
             pattern = item.name;
@@ -21,7 +20,7 @@ const matchItem = (name, item, mode) => {
         } else {
             pattern = item.name;
         }
-        regex = new RegExp('^' + pattern + '$', 'i');
+        const regex = new RegExp('^' + pattern + '$', 'i');
         if (regex.test(name)) {
             result = true;
         }
@@ -30,14 +29,14 @@ const matchItem = (name, item, mode) => {
             result = true;
         } else if (/[wxyz]/.test(item.name)) {
             if (/\d/.test(name) && /[wxz]/.test(item.name)) {
-                let updatedName = name.replace(/\d/g, '1');
-                let updatedAVName = item.name.replace(/[wxzy]/g, '1');
+                const updatedName = name.replace(/\d/g, '1');
+                const updatedAVName = item.name.replace(/[wxzy]/g, '1');
                 if (updatedAVName.includes(updatedName)) {
                     result = true;
                 }
             } else if (/\d/.test(name) && item.name.includes('y') && !/0\d/.test(name)) {
-                let updatedName = name.replace(/\d{1,2}/g, '1');
-                let updatedAVName = item.name.replace(/y/g, '1');
+                const updatedName = name.replace(/\d{1,2}/g, '1');
+                const updatedAVName = item.name.replace(/y/g, '1');
                 if (updatedAVName.includes(updatedName)) {
                     result = true;
                 }
