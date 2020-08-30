@@ -72,8 +72,9 @@ const defaultGetItemGroupsOptions = { type: 'long' };
 class CoreObject {
     /**
      * CDISC Library Core Object which contains API request functions and technical information.
-     * @param {String} username CDISC Library username.
-     * @param {String} password CDISC Library password.
+     * @param {String} username CDISC Library username. Used in case of Basic Authentication.
+     * @param {String} password CDISC Library password. Used in case of Basic Authentication.
+     * @param {String} apiKey CDISC Library API primary key. Used in case of OAuth2 Authentication.
      * @param {String} [baseUrl=https://library.cdisc.org/api] A base URL for the library.
      * @param {Object} [cache] An optional object containing functions handling cache. This object must implement the following functions:
      * @param {Function} cache.match(request) Returns a Promise that resolves to the response associated with the matching request.
@@ -84,9 +85,10 @@ class CoreObject {
      * @param {Integer} traffic.incoming Inbound traffic
      * @param {Integer} traffic.outgoing Outbound traffic
      */
-    constructor ({ username, password, baseUrl, cache, traffic } = {}) {
+    constructor ({ username, password, apiKey, baseUrl, cache, traffic } = {}) {
         this.username = username;
         this.password = password;
+        this.apiKey = apiKey;
         this.cache = cache;
         if (baseUrl !== undefined) {
             this.baseUrl = baseUrl;
@@ -122,6 +124,7 @@ class CoreObject {
             const response = await apiRequest({
                 username: this.username,
                 password: this.password,
+                apiKey: this.apiKey,
                 url: this.baseUrl + endpoint,
                 headers,
                 cache: noCache ? undefined : this.cache,
@@ -212,8 +215,9 @@ class CdiscLibrary {
     /**
      * CDISC Library Main class
      * @param {Object} params
-     * @param {String} params.username CDISC Library username.
-     * @param {String} params.password CDISC Library password.
+     * @param {String} params.username CDISC Library username. Used in case of Basic Authentication.
+     * @param {String} params.password CDISC Library password. Used in case of Basic Authentication.
+     * @param {String} params.apiKey CDISC Library API primary key. Used in case of OAuth2 Authentication.
      * @param {String} [params.baseUrl=https://library.cdisc.org/api] A base URL for the library.
      * @param {Object} [cache] An optional object containing functions handling cache. This object must implement the following functions:
      * @param {Function} cache.match(request) Returns a Promise that resolves to the response associated with the matching request.
@@ -226,8 +230,8 @@ class CdiscLibrary {
      * @property {Object} productClasses An object with product classes.
      * @property {Object} coreObject CLA Wrapper attribute. Object used to send API requests and store technical information. Must be the same object for all classes within an instance of a CdiscLibrary class.
      */
-    constructor ({ username, password, baseUrl, cache, traffic, productClasses } = {}) {
-        this.coreObject = new CoreObject({ username, password, baseUrl, cache, traffic });
+    constructor ({ username, password, apiKey, baseUrl, cache, traffic, productClasses } = {}) {
+        this.coreObject = new CoreObject({ username, password, apiKey, baseUrl, cache, traffic });
         this.productClasses = productClasses;
     }
 
