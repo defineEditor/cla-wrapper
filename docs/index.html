@@ -66,12 +66,15 @@
 <pre class="prettyprint source"><code>npm install cla-wrapper
 </code></pre>
 <h1>Usage and Documentation</h1>
-<p>In order to use the API you need CDISC Library credentials. See <a href="https://www.cdisc.org/cdisc-library">CDISC page</a> for more details.</p>
+<p>In order to use the API you need CDISC Library credentials(Basic Auth) or API key(OAuth2). See <a href="https://www.cdisc.org/cdisc-library">CDISC page</a> for more details.</p>
 <p>Create an instance of a CdiscLibrary class and use it to access CDISC Library.</p>
-<pre class="prettyprint source"><code>// Connect to the CDISC Library
-let cl = new CdiscLibrary({username: 'login', password: 'pwd'}});
+<pre class="prettyprint source"><code>// Connect to the CDISC Library using API key
+let cl = new CdiscLibrary({ apiKey: 'apiKey' }});
 // Get the VS dataset
 let vs = await cl.getItemGroup('VS','sdtmig33');
+</code></pre>
+<p>In case Basic Auth is used, specify credentials when creating an instance of a CdiscLibrary class.</p>
+<pre class="prettyprint source"><code>let cl = new CdiscLibrary({ username: 'login', password: 'pwd' }});
 </code></pre>
 <p>See the wrapper <a href="https://defineeditor.github.io/cla-wrapper/index.html">documentation</a> for details.</p>
 <h2>Authors</h2>
