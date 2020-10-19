@@ -1,0 +1,5 @@
+{
+    "inputFiles": ["./src/claWrapper.ts", "README.md", "LICENSE"],
+    "excludePrivate": true,
+    "out": "docs"
+}
