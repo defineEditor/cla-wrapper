@@ -4,7 +4,8 @@
     "description": "Wrapper for CDISC Library API",
     "main": "src/claWrapper.js",
     "scripts": {
-        "docs": "jsdoc -c jsdoc.json"
+        "build": "tsc",
+        "docs": "typedoc"
     },
     "repository": "https://github.com/defineEditor/cla-wrapper",
     "author": "Dmitry Kolosov",
@@ -33,6 +34,12 @@
         "request": "^2.88.2"
     },
     "devDependencies": {
+        "@types/node": "",
+        "@typescript-eslint/eslint-plugin": "",
+        "@typescript-eslint/parser": "",
+        "eslint-config-standard-with-typescript": "",
+        "typedoc": "",
+        "typescript": "^4.0.0",
         "docdash": "^1.1.1",
         "eslint": "^7.0.0",
         "eslint-config-standard": "^14.1.1",

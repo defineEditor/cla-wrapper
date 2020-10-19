@@ -1,24 +1,40 @@
 module.exports = {
-    "env": {
-        "browser": true,
-        "es6": true,
-        "node": true
+    root: true,
+    parser: '@typescript-eslint/parser',
+    plugins: [
+        '@typescript-eslint',
+    ],
+    extends: [
+        'eslint:recommended',
+        'plugin:@typescript-eslint/eslint-recommended',
+        'plugin:@typescript-eslint/recommended',
+        'standard-with-typescript'
+    ],
+    parserOptions: {
+        ecmaVersion: 8,
+        project: "./tsconfig.json",
+        ecmaFeatures: {
+            es6: true,
+            modules: true
+        }
     },
-    "extends": ["eslint:recommended", "standard"],
-    "globals": {
-        "Atomics": "readonly",
-        "SharedArrayBuffer": "readonly"
-    },
-    "parserOptions": {
-        "ecmaVersion": 11,
-        "sourceType": "module"
-    },
-    plugins: ["standard"],
-    "rules": {
+    rules: {
+        // enable additional rules
+        '@typescript-eslint/indent': ['error', 4, { SwitchCase: 1 }],
         indent: ['error', 4, { SwitchCase: 1 }],
         'linebreak-style': ['error', 'unix'],
         semi: ['error', 'always'],
-        'no-prototype-builtins': 0,
+        '@typescript-eslint/semi': ['error', 'always'],
         'comma-dangle': 0,
+        'member-delimiter-style': {
+            "multiline": {
+                "delimiter": "semi",
+                "requireLast": true
+            },
+            "singleline": {
+                "delimiter": "semi",
+                "requireLast": false
+            }
+        }
     }
 };
