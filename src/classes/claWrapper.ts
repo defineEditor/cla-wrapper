@@ -11,20 +11,20 @@ const defaultGetItemGroupOptions: GetItemGroupOptions = {};
 const defaultGetItemGroupsOptions: GetItemGroupsOptions = { type: 'long' };
 
 // Interfaces
-interface Items {
-    [name: string]: ItemType;
-}
 interface AnalysisVariableSets {
     [name: string]: AnalysisVariableSet;
 }
 interface ProductClasses {
     [name: string]: ProductClass;
 }
+type ItemGroupType = Domain|DataStructure|Dataset;
 interface ItemGroups {
     [name: string]: ItemGroupType;
 }
-type ItemGroupType = Domain|DataStructure|Dataset;
-type ItemType = Variable | Field;
+export type ItemType = Variable | Field;
+interface Items {
+    [name: string]: ItemType;
+}
 
 /**
  * CoreObject constructor parameters.

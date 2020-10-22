@@ -1,8 +1,8 @@
 {
     "name": "cla-wrapper",
-    "version": "0.2.6",
+    "version": "0.3.0",
     "description": "Wrapper for CDISC Library API",
-    "main": "src/claWrapper.js",
+    "main": "dist/classes/claWrapper.js",
     "scripts": {
         "build": "tsc",
         "docs": "typedoc"
