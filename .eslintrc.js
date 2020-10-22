@@ -19,6 +19,12 @@ module.exports = {
         }
     },
     rules: {
+        // disable rules
+        '@typescript-eslint/strict-boolean-expressions': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+        'no-prototype-builtins': 'off',
+        '@typescript-eslint/restrict-plus-operands': 'off',
+        '@typescript-eslint/ban-types': 'off',
         // enable additional rules
         '@typescript-eslint/indent': ['error', 4, { SwitchCase: 1 }],
         indent: ['error', 4, { SwitchCase: 1 }],
@@ -26,15 +32,15 @@ module.exports = {
         semi: ['error', 'always'],
         '@typescript-eslint/semi': ['error', 'always'],
         'comma-dangle': 0,
-        'member-delimiter-style': {
-            "multiline": {
-                "delimiter": "semi",
-                "requireLast": true
+        '@typescript-eslint/member-delimiter-style': ['error', {
+            'multiline': {
+                'delimiter': 'semi',
+                'requireLast': true
             },
-            "singleline": {
-                "delimiter": "semi",
-                "requireLast": false
+            'singleline': {
+                'delimiter': 'semi',
+                'requireLast': false
             }
-        }
+        }]
     }
 };

@@ -1,91 +1,30 @@
-const apiRequest = require('./utils/apiRequest.js');
-const convertToFormat = require('./utils/convertToFormat.js');
-const matchItem = require('./utils/matchItem.js');
+import apiRequest from '../utils/apiRequest';
+import convertToFormat from '../utils/convertToFormat';
+import matchItem from '../utils/matchItem';
+import {
+    MatchingOptions, GetItemGroupOptions, GetItemGroupsOptions, ClCache,
+    Traffic, Term, ApiRequestOptions, ProductDetails, ProductDependency
+} from '../interfaces/interfaces';
 
-/**
- * MatchingOptions
- */
-interface MatchingOptions {
-    /** Match only full names, partial - match partial names. */
-    mode: 'full' | 'partial';
-    /** If true, returns only the first matching item, when false - returns all matching items. */
-    firstOnly: boolean;
-}
-const defaultMatchingOptions : MatchingOptions = { mode: 'full', firstOnly: false };
-
-/**
- * GetItemGroupOptions
- */
-interface GetItemGroupOptions {
-    /** Specifies the output format. Possible values: json, csv. */
-    format?: 'csv' | 'json';
-}
+const defaultMatchingOptions: MatchingOptions = { mode: 'full', firstOnly: false };
 const defaultGetItemGroupOptions: GetItemGroupOptions = {};
-
-/**
- * GetItemGroupsOptions
- */
-interface GetItemGroupsOptions {
-    /** Specifies whether a short or full description of itemGroups is required. Possible values: short, long (default). */
-    type?: 'short' | 'long';
-    /** Specifies the output format. Possible values: json, csv. */
-    format?: 'csv' | 'json';
-}
 const defaultGetItemGroupsOptions: GetItemGroupsOptions = { type: 'long' };
 
-/**
- * Information about traffic used by the wrapper
-*/
-interface Traffic {
-    /** Inbound traffic. */
-    incoming: number,
-    /** Outbound traffic. */
-    outgoing: number,
-};
-
-/**
- * Functions handling cache.
- */
-interface ClCache {
-    /** Returns a Promise that resolves to the response associated with the matching request. */
-    match: (req: Request) => Promise<Request>,
-    /**
-     * Takes both a request and its response and adds it to the given cache.
-     * Response must contain the body attribute.
-     * Do not create connection attribute in the cached response, in order to avoid traffic count.
-     */
-    put: (req: Request, res: Response) => Promise<any>,
-};
-
-/**
- * Request options.
- */
-interface ApiRequestOptions {
-    /** Additional headers for the request. */
-    headers?: object;
-    /** If true, a raw response is returned. By default the response body is returned. */
-    returnRaw?: boolean;
-    /** If true, cache will not be used for that request. */
-    noCache?: boolean;
+// Interfaces
+interface Items {
+    [name: string]: ItemType;
 }
-
+interface AnalysisVariableSets {
+    [name: string]: AnalysisVariableSet;
+}
 interface ProductClasses {
-    [name: string]: ProductClass
+    [name: string]: ProductClass;
 }
-
-interface ProductDetailsShort {
-    id: string;
-    label: string;
+interface ItemGroups {
+    [name: string]: ItemGroupType;
 }
-
-interface ProductDetailsLong {
-    [name: string]: any
-}
-
-type ProductDetails =
-    ProductDetailsShort |
-    ProductDetailsLong
-;
+type ItemGroupType = Domain|DataStructure|Dataset;
+type ItemType = Variable | Field;
 
 /**
  * CoreObject constructor parameters.
@@ -123,7 +62,7 @@ class CoreObject {
         baseUrl,
         cache,
         traffic
-    } : CoreObjectParameters) {
+    }: CoreObjectParameters) {
         this.username = username;
         this.password = password;
         this.apiKey = apiKey;
@@ -151,10 +90,10 @@ class CoreObject {
      * @returns API response, if API request failed a blank object is returned.
      */
 
-    async apiRequest (endpoint: string, { headers, returnRaw = false, noCache = false} : ApiRequestOptions = {}) : Promise<any> {
+    async apiRequest (endpoint: string, { headers, returnRaw = false, noCache = false }: ApiRequestOptions = {}): Promise<any> {
         // Default options
         try {
-            const response = await apiRequest({
+            const response: any = await apiRequest({
                 username: this.username,
                 password: this.password,
                 apiKey: this.apiKey,
@@ -163,7 +102,7 @@ class CoreObject {
                 cache: noCache ? undefined : this.cache,
             });
             // Count traffic
-            if (response.connection) {
+            if (response.connection !== undefined) {
                 this.traffic.incoming += response.connection.bytesRead;
                 this.traffic.outgoing += response.connection.bytesWritten;
             }
@@ -172,7 +111,7 @@ class CoreObject {
             }
             if (response.statusCode === 200) {
                 return JSON.parse(response.body);
-            } else if (response.statusCode) {
+            } else if (response.statusCode > 0) {
                 throw new Error('Request failed with code: ' + response.statusCode);
             } else {
                 throw new Error('Request failed');
@@ -199,7 +138,7 @@ abstract class BasicFunctions {
     /**
      * Parse API response as an object
     */
-    abstract parseResponse(response: any, id?: any) : void;
+    abstract parseResponse (response: any, id?: any): void;
 
     /**
      * Get raw API response
@@ -207,12 +146,12 @@ abstract class BasicFunctions {
      * @param href CDISC Library API endpoint. If not specified, href attribute of the object is used.
      * @returns Returns a JSON response if the request was successfull, otherwise returns undefined.
      */
-    async getRawResponse (href?: string) : Promise<object|undefined> {
+    async getRawResponse (href?: string): Promise<object|undefined> {
         let link = href;
         if (href === undefined && this.href !== undefined) {
             link = this.href;
         }
-        if (this.coreObject && link) {
+        if (this.coreObject !== undefined && link !== undefined) {
             const response = await this.coreObject.apiRequest(link);
             if (typeof response === 'object') {
                 return response;
@@ -226,7 +165,7 @@ abstract class BasicFunctions {
      * @param href CDISC Library API endpoint. If not specified, href attribute of the object is used.
      * @returns Returns true in the object was successfully loaded, false otherwise
      */
-    async load (href?: string) : Promise<boolean> {
+    async load (href?: string): Promise<boolean> {
         const response = await this.getRawResponse(href);
         if (response === undefined) {
             return false;
@@ -241,7 +180,7 @@ abstract class BasicFunctions {
      *
      * @returns {Object} A new object
      */
-    toSimpleObject () : object {
+    toSimpleObject (): object {
         const result: { [name: string]: any} = {};
         for (const prop in this) {
             // Remove all techical or inherited properties
@@ -258,18 +197,6 @@ abstract class BasicFunctions {
  */
 interface CdiscLibraryParameters extends CoreObjectParameters {
     productClasses?: ProductClasses;
-}
-
-/**
- * ItemGroup.
- */
-type ItemGroupType = Domain|DataStructure|Dataset;
-
-/**
- * CdiscLibrary constructor parameters.
- */
-interface ItemGroups {
-    [name: string]: ItemGroupType;
 }
 
 class CdiscLibrary {
@@ -290,7 +217,7 @@ class CdiscLibrary {
      * @param {Object} [cache] {@link CoreObject.cache}
      * @param {Object} [traffic] {@link CoreObject.traffic}
      */
-    constructor ({ username, password, apiKey, baseUrl, cache, traffic, productClasses } : CdiscLibraryParameters = {}) {
+    constructor ({ username, password, apiKey, baseUrl, cache, traffic, productClasses }: CdiscLibraryParameters = {}) {
         this.coreObject = new CoreObject({ username, password, apiKey, baseUrl, cache, traffic });
         this.productClasses = productClasses;
     }
@@ -300,9 +227,9 @@ class CdiscLibrary {
      *
      * @returns Returns response status code and description
      */
-    async checkConnection () : Promise<object> {
+    async checkConnection (): Promise<object> {
         let response;
-        let result : {
+        let result: {
             statusCode: number;
             description?: string;
         };
@@ -341,14 +268,14 @@ class CdiscLibrary {
      *
      * @returns Returns object with update dates
      */
-    async getLastUpdated () : Promise<object> {
+    async getLastUpdated (): Promise<object> {
         let response;
-        let result : any = {};
+        let result: any = {};
         try {
             response = await this.coreObject.apiRequest('/mdr/lastupdated', { noCache: true });
             if (response !== undefined) {
                 result = response;
-                if (result._links) {
+                if (result._links !== undefined) {
                     delete result._links;
                 }
             }
@@ -364,7 +291,7 @@ class CdiscLibrary {
      * @returns Product classes
      */
     async getProductClasses (): Promise<ProductClasses> {
-        if (this.productClasses) {
+        if (this.productClasses !== undefined) {
             return this.productClasses;
         }
         const productClasses: ProductClasses = {};
@@ -387,7 +314,7 @@ class CdiscLibrary {
      *
      * @returns Array of product class names
      */
-    async getProductClassList (): Promise<Array<string>> {
+    async getProductClassList (): Promise<string[]> {
         if (this.productClasses) {
             return Object.keys(this.productClasses);
         } else {
@@ -400,8 +327,8 @@ class CdiscLibrary {
      *
      * @returns Array of product group names
      */
-    async getProductGroupList () : Promise<Array<string>>  {
-        let result: Array<string> = [];
+    async getProductGroupList (): Promise<string[]> {
+        let result: string[] = [];
         const pcList = await this.getProductClassList();
         pcList.forEach(pcId => {
             result = result.concat(this.productClasses[pcId].getProductGroupList());
@@ -415,11 +342,11 @@ class CdiscLibrary {
      * @param format Specifies the output format. Possible values: json, csv.
      * @returns List of product names (IDs)
      */
-    async getProductList (format = 'json') : Promise<Array<string>> {
-        let result: Array<string> = [];
+    async getProductList (format: 'json' | 'csv' = 'json'): Promise<string[] | string[]> {
+        let result: string[] = [];
         const pcList = await this.getProductClassList();
         pcList.forEach(pcId => {
-            result = result.concat(this.productClasses[pcId].getProductList() as Array<string>);
+            result = result.concat(this.productClasses[pcId].getProductList() as string[]);
         });
         return convertToFormat(result, format);
     }
@@ -431,7 +358,7 @@ class CdiscLibrary {
      * @param loadBasicInfo If true, will load only basic product details. By default a full product is loaded.
      * @returns Product
      */
-    async getFullProduct (alias: string, loadBasicInfo?: boolean) : Promise<any> {
+    async getFullProduct (alias: string, loadBasicInfo?: boolean): Promise<any> {
         let result;
         const pcs = await this.getProductClasses();
         // Get IDs
@@ -439,7 +366,7 @@ class CdiscLibrary {
         if (productFullId) {
             const pgs = pcs[productFullId.productClassId].productGroups;
             const pg = pgs[productFullId.productGroupId];
-            if (loadBasicInfo === true) {
+            if (loadBasicInfo) {
                 result = pg.products[productFullId.productId];
             } else {
                 result = await pg.getFullProduct(productFullId.productId);
@@ -456,7 +383,7 @@ class CdiscLibrary {
      * @param options @GetItemGroupOptions
      * @returns Dataset/DataStructure/Domain
      */
-    async getItemGroup (name: string, productAlias: string, options: GetItemGroupOptions) : Promise<ItemGroupType|string> {
+    async getItemGroup (name: string, productAlias: string, options: GetItemGroupOptions): Promise<ItemGroupType|string> {
         let result;
         const defaultedOptions = { ...defaultGetItemGroupOptions, ...options };
         if (!this.productClasses) {
@@ -504,7 +431,7 @@ class CdiscLibrary {
      * @param [options.format=json] Output format. Possible values: json, csv.
      * @returns Product list with details
      */
-    async getProductDetails ({ type = 'short', format = 'json' } : GetItemGroupsOptions  = {}) : Promise<Array<ProductDetails>> {
+    async getProductDetails ({ type = 'short', format = 'json' }: GetItemGroupsOptions = {}): Promise<ProductDetails[]> {
         const result: Array<string|object> = [];
         const productClasses = await this.getProductClasses();
         Object.values(productClasses).forEach((pc: ProductClass) => {
@@ -571,7 +498,7 @@ class CdiscLibrary {
      * @param name Product name alias
      * @returns Product, product group, product class IDs
      */
-    async getProductIdByAlias (alias: string) : Promise<{productClassId: string; productGroupId: string; productId: string}|undefined> {
+    async getProductIdByAlias (alias: string): Promise<{productClassId: string; productGroupId: string; productId: string}|undefined> {
         let result;
         let productClasses = this.productClasses;
         if (!productClasses) {
@@ -599,13 +526,12 @@ class CdiscLibrary {
 /**
  * Product class
  */
-
 class ProductClass extends BasicFunctions {
     /** Product class name. */
     name: string;
     /** An object with Product Groups. */
     productGroups: { [name: string]: ProductGroup };
-    constructor({ name, productGroups, coreObject }: { name?: string; productGroups?: { [name: string]: ProductGroup }, coreObject?: CoreObject } = {}) {
+    constructor ({ name, productGroups, coreObject }: { name?: string; productGroups?: { [name: string]: ProductGroup }; coreObject?: CoreObject } = {}) {
         super();
         this.name = name;
         this.productGroups = productGroups;
@@ -618,9 +544,9 @@ class ProductClass extends BasicFunctions {
      * @param name Product class name.
      * @param pcRaw Raw CDISC API response.
      */
-    parseResponse (pcRaw: any, name: string) : void {
+    parseResponse (pcRaw: any, name: string): void {
         this.name = name;
-        const productGroups : { [name: string] : ProductGroup } = {};
+        const productGroups: { [name: string]: ProductGroup } = {};
         if (pcRaw.hasOwnProperty('_links')) {
             Object.keys(pcRaw._links).forEach(pgId => {
                 if (pgId !== 'self') {
@@ -638,7 +564,7 @@ class ProductClass extends BasicFunctions {
      *
      * @returns {Object} Product groups
      */
-    getProductGroups () : { [name: string] : ProductGroup } {
+    getProductGroups (): { [name: string]: ProductGroup } {
         if (this.productGroups) {
             return this.productGroups;
         } else {
@@ -651,7 +577,7 @@ class ProductClass extends BasicFunctions {
      *
      * @returns {Array} Array of product group names
      */
-    getProductGroupList (): Array<string> {
+    getProductGroupList (): string[] {
         if (this.productGroups) {
             return Object.keys(this.productGroups);
         } else {
@@ -665,11 +591,11 @@ class ProductClass extends BasicFunctions {
      * @param Specifies the output format. Possible values: json, csv.
      * @returns List of product names (IDs)
      */
-    getProductList (format: 'json' | 'csv' = 'json') : object | string {
-        let result: Array<string> = [];
+    getProductList (format: 'json' | 'csv' = 'json'): object | string {
+        let result: string[] = [];
         const pgList = this.getProductGroupList();
         pgList.forEach(pgId => {
-            result = result.concat(this.getProductGroups()[pgId].getProductList() as Array<string>);
+            result = result.concat(this.getProductGroups()[pgId].getProductList() as string[]);
         });
         return convertToFormat(result, format);
     }
@@ -682,7 +608,7 @@ class ProductClass extends BasicFunctions {
      * @param options @GetItemGroupOptions
      * @returns Dataset/DataStruture/Domain
      */
-    async getItemGroup (name: string, productAlias: string, options: GetItemGroupOptions) : Promise<ItemGroupType|string> {
+    async getItemGroup (name: string, productAlias: string, options: GetItemGroupOptions): Promise<ItemGroupType|string> {
         let result;
         const defaultedOptions = { ...defaultGetItemGroupOptions, ...options };
         for (const productGroup of Object.values(this.productGroups)) {
@@ -738,13 +664,12 @@ class ProductClass extends BasicFunctions {
 /**
  * Product Group class
  */
-
 class ProductGroup extends BasicFunctions {
     /** Product group name. */
     name: string;
-    /** An object with products.*/
-    products: { [name: string] : Product };
-    constructor ({ name, products = {}, coreObject } : { name?: string; products?: { [name: string] : Product }; coreObject?: CoreObject } = {}) {
+    /** An object with products. */
+    products: { [name: string]: Product };
+    constructor ({ name, products = {}, coreObject }: { name?: string; products?: { [name: string]: Product }; coreObject?: CoreObject } = {}) {
         super();
         this.name = name;
         this.products = products;
@@ -757,7 +682,7 @@ class ProductGroup extends BasicFunctions {
      * @param name name
      * @param pgRaw Raw CDISC API response
      */
-    parseResponse (pgRaw: Array<object>, name: string) : void {
+    parseResponse (pgRaw: object[], name: string): void {
         this.name = name;
         const products: { [name: string]: Product } = {};
         pgRaw.forEach(gRaw => {
@@ -786,8 +711,8 @@ class ProductGroup extends BasicFunctions {
      * @param format Specifies the output format. Possible values: json, csv.
      * @returns List of product names (IDs)
      */
-    getProductList (format = 'json') : Array<string> | object {
-        let result: Array<string> = [];
+    getProductList (format: 'json' | 'csv' = 'json'): string[] | object {
+        let result: string[] = [];
         if (this.products) {
             result = Object.keys(this.getProducts()).map(pId => this.products[pId].id);
         } else {
@@ -805,7 +730,7 @@ class ProductGroup extends BasicFunctions {
     getProductIdByAlias (alias: string): { productId: string } | undefined {
         let productId;
         if (this.products) {
-            const productList = this.getProductList() as Array<string>;
+            const productList = this.getProductList() as string[];
             // Try exact match first, then make it less strict
             productId = productList.find(id => (alias.toLowerCase() === id.toLowerCase()));
             // Remove - and .
@@ -834,7 +759,7 @@ class ProductGroup extends BasicFunctions {
         const idObj = this.getProductIdByAlias(alias);
         if (idObj !== undefined) {
             const id = idObj.productId;
-            if (loadBasicInfo === true) {
+            if (loadBasicInfo) {
                 return this.products[id];
             } else {
                 const productRaw = await this.coreObject.apiRequest(this.products[id].href);
@@ -855,11 +780,11 @@ class ProductGroup extends BasicFunctions {
      * @param {GetItemGroupOptions} options {@link GetItemGroupOptions}
      * @returns {Object} Dataset/DataStruture/Domain
      */
-    async getItemGroup (name: string, productAlias: string, options?: GetItemGroupOptions) : Promise<ItemGroupType|string> {
+    async getItemGroup (name: string, productAlias: string, options?: GetItemGroupOptions): Promise<ItemGroupType|string> {
         const defaultedOptions = { ...defaultGetItemGroupOptions, ...options };
         const idObj = this.getProductIdByAlias(productAlias);
         if (idObj) {
-            return this.products[idObj.productId].getItemGroup(name, defaultedOptions);
+            return await this.products[idObj.productId].getItemGroup(name, defaultedOptions);
         }
     }
 
@@ -877,13 +802,13 @@ class ProductGroup extends BasicFunctions {
         const idObj = this.getProductIdByAlias(productAlias);
         if (idObj) {
             const id = idObj.productId;
-            if (this.products[id].fullyLoaded !== true && defaultedOptions.type !== 'short') {
+            if (!this.products[id].fullyLoaded && defaultedOptions.type !== 'short') {
                 // If the product is not fully loaded
                 await this.getFullProduct(id);
-                return this.products[id].getItemGroups(defaultedOptions);
+                return await this.products[id].getItemGroups(defaultedOptions);
             } else {
                 // When a short description is required of the product is fully loaded
-                return this.products[id].getItemGroups(defaultedOptions);
+                return await this.products[id].getItemGroups(defaultedOptions);
             }
         }
     }
@@ -915,64 +840,42 @@ interface ProductParameters {
 }
 
 /**
- * Product dependency.
- */
-interface ProductDependency {
-    id: string;
-    href: string;
-    title: string;
-    class: string;
-}
-
-/**
- * Item type.
- */
-type ItemType = Variable | Field;
-
-/**
- * Items.
- */
-interface Items {
-    [name: string]: ItemType
-}
-
-/**
  * Product class
  */
 class Product extends BasicFunctions {
-     /** CLA Wrapper attribute. Product ID. */
+    /** CLA Wrapper attribute. Product ID. */
     id?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     name?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     label?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     title?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     type?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     description?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     source?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     effectiveDate?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     registrationStatus?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     version?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     dataClasses?: { [name: string]: DataClass };
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     dataStructures?: { [name: string]: DataStructure };
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     codelists?: { [name: string]: CodeList };
-     /** CLA Wrapper attribute. Model of the product (e.g., ADaM, SDTM, SEND, CDASH) */
+    /** CLA Wrapper attribute. Model of the product (e.g., ADaM, SDTM, SEND, CDASH) */
     model?: string;
-     /** CLA Wrapper attribute. Name of the attribute which contains child groups (e.g., dataStructures, dataClasses, domains, codelits) */
+    /** CLA Wrapper attribute. Name of the attribute which contains child groups (e.g., dataStructures, dataClasses, domains, codelits) */
     datasetType?: 'dataStructures' | 'dataClasses' | 'domains' | 'datasets' | 'codelists';
-     /** CLA Wrapper attribute. Model and Prior version. */
+    /** CLA Wrapper attribute. Model and Prior version. */
     dependencies?: { [name: string]: ProductDependency };
-     /** CLA Wrapper attribute. Set to TRUE when the product is fully loaded, FALSE otherwise. */
+    /** CLA Wrapper attribute. Set to TRUE when the product is fully loaded, FALSE otherwise. */
     fullyLoaded?: boolean;
     constructor ({
         id, name, title, label, type, description, source, effectiveDate,
@@ -1068,7 +971,7 @@ class Product extends BasicFunctions {
             const dataStructures: { [name: string]: DataStructure } = {};
             pRaw.dataStructures.forEach((dataStructureRaw: any) => {
                 let href;
-                if (dataStructureRaw._links && dataStructureRaw._links.self) {
+                if (dataStructureRaw?._links?.self) {
                     href = dataStructureRaw._links.self.href;
                 }
                 const dataStructure = new DataStructure({
@@ -1083,9 +986,9 @@ class Product extends BasicFunctions {
         }
         if (pRaw.hasOwnProperty('classes')) {
             const dataClasses: { [name: string]: DataClass } = {};
-            pRaw.classes.forEach((dataClassRaw: any)  => {
+            pRaw.classes.forEach((dataClassRaw: any) => {
                 let href;
-                if (dataClassRaw._links && dataClassRaw._links.self) {
+                if (dataClassRaw?._links?.self) {
                     href = dataClassRaw._links.self.href;
                 }
                 const dataClass = new DataClass({
@@ -1108,7 +1011,7 @@ class Product extends BasicFunctions {
             const codelists: { [name: string]: CodeList } = {};
             pRaw.codelists.forEach((codeListRaw: any) => {
                 let href;
-                if (codeListRaw._links && codeListRaw._links.self) {
+                if (codeListRaw?._links?.self) {
                     href = codeListRaw._links.self.href;
                 }
                 const codeList = new CodeList({
@@ -1144,7 +1047,7 @@ class Product extends BasicFunctions {
      * @returns {Object} An object with variables/fields
      */
     async getItems (): Promise<Items> {
-        if (this.fullyLoaded === true) {
+        if (this.fullyLoaded) {
             return this.getCurrentItems();
         } else {
             // Load the full product
@@ -1189,7 +1092,7 @@ class Product extends BasicFunctions {
         const defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
         let result: any = {};
         if (defaultedOptions.type !== 'short') {
-            if (this.fullyLoaded === true) {
+            if (this.fullyLoaded) {
                 result = this.getCurrentItemGroups();
             } else {
                 // Load the full product
@@ -1198,7 +1101,7 @@ class Product extends BasicFunctions {
                 this.fullyLoaded = true;
             }
         } else {
-            if (this.fullyLoaded === true) {
+            if (this.fullyLoaded) {
                 const itemGroups = this.getCurrentItemGroups();
                 Object.values(itemGroups).forEach(itemGroup => {
                     result[itemGroup.name] = { name: itemGroup.name, label: itemGroup.label };
@@ -1206,7 +1109,7 @@ class Product extends BasicFunctions {
             } else {
                 const datasetsHref = `${this.href}/${this.datasetType.toLowerCase()}`;
                 const itemGroupsRaw = await this.coreObject.apiRequest(datasetsHref);
-                if (itemGroupsRaw && itemGroupsRaw._links && itemGroupsRaw._links[this.datasetType]) {
+                if (itemGroupsRaw?._links[this.datasetType]) {
                     itemGroupsRaw._links[this.datasetType].forEach((dsRaw: any) => {
                         const name = dsRaw.href.replace(/.*\/(.*)$/, '$1');
                         result[name] = { name, label: dsRaw.title };
@@ -1220,9 +1123,9 @@ class Product extends BasicFunctions {
             if (defaultedOptions.type === 'short') {
                 return convertToFormat(Object.values(result), defaultedOptions.format);
             } else {
-                let formatted: Array<object> = [];
+                let formatted: object[] = [];
                 Object.values(result).forEach((itemGroup: ItemGroupType) => {
-                    formatted = formatted.concat(itemGroup.getFormattedItems('json', true) as Array<object>);
+                    formatted = formatted.concat(itemGroup.getFormattedItems('json', true) as object[]);
                 });
                 return convertToFormat(formatted, defaultedOptions.format);
             }
@@ -1253,7 +1156,7 @@ class Product extends BasicFunctions {
      * @param {GetItemGroupOptions} options {@link GetItemGroupOptions}
      * @returns {Object} Dataset/DataStruture/Domain
      */
-    async getItemGroup (name: string, options?: GetItemGroupOptions) : Promise<ItemGroupType|string> {
+    async getItemGroup (name: string, options?: GetItemGroupOptions): Promise<ItemGroupType|string> {
         let result;
         const defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
         // Check if dataset is already present;
@@ -1299,14 +1202,14 @@ class Product extends BasicFunctions {
                     result.parseResponse(dsRaw);
                 }
                 // Create a class to add this itemgroup to the main object
-                if (dsRaw._links && dsRaw._links.parentClass) {
+                if (dsRaw?._links?.parentClass) {
                     const dcRaw = dsRaw._links.parentClass;
                     const dataClass = new DataClass({
                         ...dcRaw,
                         coreObject: this.coreObject
                     });
                     dataClass.name = dataClass.id;
-                    if (this.dataClasses && this.dataClasses.hasOwnProperty(dataClass.id)) {
+                    if (this?.dataClasses?.hasOwnProperty(dataClass.id)) {
                         // If the dataClass is already present, add the dataset to it
                         this.dataClasses[dataClass.id][this.datasetType as 'datasets' | 'domains'][result.id] = result;
                     } else {
@@ -1331,10 +1234,10 @@ class Product extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options?: MatchingOptions): Array<ItemType> {
+    findMatchingItems (name: string, options?: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
-        let result: Array<ItemType> = [];
+        let result: ItemType[] = [];
         let sourceObject;
         if (this.dataStructures) {
             sourceObject = this.dataStructures;
@@ -1346,7 +1249,7 @@ class Product extends BasicFunctions {
                 const matches = obj.findMatchingItems(name, defaultedOptions);
                 if (matches.length > 0) {
                     result = result.concat(matches);
-                    if (defaultedOptions.firstOnly === true) {
+                    if (defaultedOptions.firstOnly) {
                         return true;
                     }
                 }
@@ -1363,7 +1266,7 @@ class Product extends BasicFunctions {
      * @param {String} [options.format=json] Specifies the output format. Possible values: json, csv.
      * @returns {Array} Array of codelist IDs and titles.
      */
-    async getCodeListList (options: GetItemGroupsOptions = { type: 'long'}): Promise<Array<{ conceptId: string; preferredTerm: string; href?: string }>> {
+    async getCodeListList (options: GetItemGroupsOptions = { type: 'long' }): Promise<Array<{ conceptId: string; preferredTerm: string; href?: string }>> {
         const result: Array<{ conceptId: string; preferredTerm: string; href?: string }> = [];
         if (!this.codelists) {
             const codeListsHref = `${this.href}/codelists`;
@@ -1399,9 +1302,9 @@ class Product extends BasicFunctions {
      * @param {String} [options.format=json] Specifies the output format. Possible values: json, csv.
      * @returns {Object} Codelist.
      */
-    async getCodeList (codeListId: string, options: GetItemGroupOptions = {}): Promise<CodeList|Array<Term>|string> {
+    async getCodeList (codeListId: string, options: GetItemGroupOptions = {}): Promise<CodeList|Term[]|string> {
         let ct;
-        if (this.codelists && this.codelists[codeListId]) {
+        if (this?.codelists[codeListId]) {
             ct = this.codelists[codeListId];
         }
         // If not found, try to loaded it. Even when found it is possible that the codelist is not fully loaded
@@ -1446,13 +1349,6 @@ interface DataStructureParameters {
 }
 
 /**
- * Analysis Variable Sets.
- */
-interface AnalysisVariableSets {
-    [name: string]: AnalysisVariableSet;
-}
-
-/**
  * Data Structure class
  */
 class DataStructure extends BasicFunctions {
@@ -1469,7 +1365,7 @@ class DataStructure extends BasicFunctions {
     /** CDISC Library attribute. */
     analysisVariableSets?: AnalysisVariableSets;
 
-    constructor ({ name, label, description, className, analysisVariableSets, href, coreObject } : DataStructureParameters = {}) {
+    constructor ({ name, label, description, className, analysisVariableSets, href, coreObject }: DataStructureParameters = {}) {
         super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
         this.name = name;
@@ -1496,7 +1392,7 @@ class DataStructure extends BasicFunctions {
             dsRaw.analysisVariableSets.forEach((analysisVariableSetRaw: any) => {
                 let href;
                 let id;
-                if (analysisVariableSetRaw._links && analysisVariableSetRaw._links.self) {
+                if (analysisVariableSetRaw?._links?.self) {
                     href = analysisVariableSetRaw._links.self.href;
                     id = href.replace(/.*\/(.*)$/, '$1');
                 }
@@ -1537,7 +1433,7 @@ class DataStructure extends BasicFunctions {
      *
      * @returns {Object|undefined} An object with variable/field if found
      */
-    async getItem (name: string) : Promise<ItemType> {
+    async getItem (name: string): Promise<ItemType> {
         let result;
 
         Object.values(this.getItems()).some(item => {
@@ -1556,16 +1452,16 @@ class DataStructure extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): Array<ItemType> {
+    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
-        let result: Array<ItemType> = [];
+        let result: ItemType[] = [];
         if (this.analysisVariableSets) {
             Object.values(this.analysisVariableSets).some(analysisVariableSet => {
                 const matches = analysisVariableSet.findMatchingItems(name, defaultedOptions);
                 if (matches.length > 0) {
                     result = result.concat(matches);
-                    if (defaultedOptions.firstOnly === true) {
+                    if (defaultedOptions.firstOnly) {
                         return true;
                     }
                 }
@@ -1581,11 +1477,11 @@ class DataStructure extends BasicFunctions {
      * @param {Boolean} [addItemGroupId=false] If set to true, itemGroup name is added to each records.
      * @returns {String|Array} String with formatted items or an array with item details.
      */
-    getFormattedItems (format: 'json' | 'csv', addItemGroupId = false): string|Array<ItemType> {
-        let result: Array<object> = [];
+    getFormattedItems (format: 'json' | 'csv', addItemGroupId = false): string|ItemType[] {
+        let result: object[] = [];
         if (this.analysisVariableSets) {
             Object.values(this.analysisVariableSets).forEach((analysisVariableSet: AnalysisVariableSet) => {
-                result = result.concat(analysisVariableSet.getFormattedItems('json', addItemGroupId, { dataStructure: this.id }) as Array<ItemType>);
+                result = result.concat(analysisVariableSet.getFormattedItems('json', addItemGroupId, { dataStructure: this.id }) as ItemType[]);
             });
             return convertToFormat(result, format);
         }
@@ -1598,9 +1494,9 @@ class DataStructure extends BasicFunctions {
      * @param {Boolean} [options.descriptions=false] Will return an object with variable set IDs and their labels.
      * @returns {Object|Array} List of variable sets.
      */
-    getVariableSetList (options: { descriptions?: boolean } = {}): Array<string>|object {
+    getVariableSetList (options: { descriptions?: boolean } = {}): string[]|object {
         const analysisVariableSets = this.analysisVariableSets || {};
-        if (options?.descriptions === true) {
+        if (options?.descriptions) {
             const result: { [name: string]: string} = {};
             Object.keys(analysisVariableSets).forEach(id => {
                 result[id] = analysisVariableSets[id].label;
@@ -1687,7 +1583,7 @@ class DataClass extends BasicFunctions {
             dcRaw.datasets.forEach((datasetRaw: any) => {
                 let href;
                 let id;
-                if (datasetRaw._links && datasetRaw._links.self) {
+                if (datasetRaw?._links?.self) {
                     href = datasetRaw._links.self.href;
                     id = href.replace(/.*\/(.*)$/, '$1');
                 }
@@ -1709,14 +1605,14 @@ class DataClass extends BasicFunctions {
             const domains: { [name: string]: Domain } = {};
             rawDomains
                 .filter((domainRaw: any) => {
-                    if (domainRaw._links && domainRaw._links.parentClass) {
+                    if (domainRaw?._links?.parentClass) {
                         return domainRaw._links.parentClass.href === this.href;
                     }
                 })
                 .forEach((domainRaw: any) => {
                     let href;
                     let id;
-                    if (domainRaw._links && domainRaw._links.self) {
+                    if (domainRaw?._links?.self) {
                         href = domainRaw._links.self.href;
                         id = href.replace(/.*\/(.*)$/, '$1');
                     }
@@ -1738,7 +1634,7 @@ class DataClass extends BasicFunctions {
             if (dcRaw.hasOwnProperty('classVariables')) {
                 dcRaw.classVariables.forEach((variableRaw: any) => {
                     let href;
-                    if (variableRaw._links && variableRaw._links.self) {
+                    if (variableRaw?._links?.self) {
                         href = variableRaw._links.self.href;
                     }
                     const variable = new Variable({
@@ -1757,7 +1653,7 @@ class DataClass extends BasicFunctions {
             if (dcRaw.hasOwnProperty('cdashModelFields')) {
                 dcRaw.cdashModelFields.forEach((fieldRaw: any) => {
                     let href;
-                    if (fieldRaw._links && fieldRaw._links.self) {
+                    if (fieldRaw?._links?.self) {
                         href = fieldRaw._links.self.href;
                     }
                     const field = new Field({
@@ -1847,16 +1743,16 @@ class DataClass extends BasicFunctions {
      * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): Array<ItemType> {
+    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
-        let result: Array<ItemType> = [];
+        let result: ItemType[] = [];
         if (this.datasets) {
             Object.values(this.datasets).some(dataset => {
                 const matches = dataset.findMatchingItems(name, defaultedOptions);
                 if (matches.length > 0) {
                     result = result.concat(matches);
-                    if (defaultedOptions.firstOnly === true) {
+                    if (defaultedOptions.firstOnly) {
                         return true;
                     }
                 }
@@ -1866,7 +1762,7 @@ class DataClass extends BasicFunctions {
             for (const variable of Object.values(this.classVariables)) {
                 if (matchItem(name, variable, defaultedOptions.mode)) {
                     result.push(variable);
-                    if (defaultedOptions.firstOnly === true) {
+                    if (defaultedOptions.firstOnly) {
                         break;
                     }
                 }
@@ -1876,7 +1772,7 @@ class DataClass extends BasicFunctions {
             for (const field of Object.values(this.cdashModelFields)) {
                 if (matchItem(name, field, defaultedOptions.mode)) {
                     result.push(field);
-                    if (defaultedOptions.firstOnly === true) {
+                    if (defaultedOptions.firstOnly) {
                         break;
                     }
                 }
@@ -1903,24 +1799,24 @@ interface ItemGroupParameters {
  * ItemGroup class: base for Dataset, DataStructure, Domain
  */
 abstract class ItemGroup extends BasicFunctions {
-     /** CDISC Library attribute. */
-     name?: string;
-     /** CDISC Library attribute. */
-     label?: string;
-     /** CDISC Library attribute. Value of the _links.self.type. */
-     type?: string;
-     /** CLA Wrapper attribute. Item group class ID. */
-     id?: string;
-     /** CDISC Library attribute. */
-     scenarios?: {[name: string]: Scenario };
-     /** CDISC Library attribute. */
-     fields?: {[name: string]: Field };
-     /** CDISC Library attribute. */
-     analysisVariables?: {[name: string]: Variable };
-     /** CDISC Library attribute. */
-     datasetVariables?: {[name: string]: Variable };
-     /** CLA Wrapper attribute. Name of the item type (field, analysisVariable, datasetVariable). Corresponds to an object name of the classes which are extending ItemGroup class (Dataset, Domain, VariableSet). */
-     itemType?: 'fields' | 'analysisVariables' | 'datasetVariables';
+    /** CDISC Library attribute. */
+    name?: string;
+    /** CDISC Library attribute. */
+    label?: string;
+    /** CDISC Library attribute. Value of the _links.self.type. */
+    type?: string;
+    /** CLA Wrapper attribute. Item group class ID. */
+    id?: string;
+    /** CDISC Library attribute. */
+    scenarios?: {[name: string]: Scenario };
+    /** CDISC Library attribute. */
+    fields?: {[name: string]: Field };
+    /** CDISC Library attribute. */
+    analysisVariables?: {[name: string]: Variable };
+    /** CDISC Library attribute. */
+    datasetVariables?: {[name: string]: Variable };
+    /** CLA Wrapper attribute. Name of the item type (field, analysisVariable, datasetVariable). Corresponds to an object name of the classes which are extending ItemGroup class (Dataset, Domain, VariableSet). */
+    itemType?: 'fields' | 'analysisVariables' | 'datasetVariables';
 
     constructor ({ id, name, label, itemType, type, href, coreObject }: ItemGroupParameters = {}) {
         super();
@@ -1953,7 +1849,7 @@ abstract class ItemGroup extends BasicFunctions {
         if (itemRaw.hasOwnProperty(this.itemType)) {
             itemRaw[this.itemType].forEach((itemRaw: any) => {
                 let href;
-                if (itemRaw._links && itemRaw._links.self) {
+                if (itemRaw?._links?.self) {
                     href = itemRaw._links.self.href;
                 }
                 let item;
@@ -1977,7 +1873,7 @@ abstract class ItemGroup extends BasicFunctions {
             });
         }
         if (itemRaw.hasOwnProperty('_links')) {
-            if (itemRaw._links.self && itemRaw._links.self.type) {
+            if (itemRaw?._links?.self?.type) {
                 this.type = itemRaw._links.self.type;
             }
         }
@@ -2029,8 +1925,8 @@ abstract class ItemGroup extends BasicFunctions {
      *
      * @returns {Array} An array with item names.
      */
-    getNameList (): Array<string> {
-        let result: Array<string> = [];
+    getNameList (): string[] {
+        let result: string[] = [];
         if (this[this.itemType]) {
             Object.values(this[this.itemType]).forEach(item => {
                 result.push(item.name);
@@ -2055,15 +1951,15 @@ abstract class ItemGroup extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): Array<ItemType> {
+    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
-        let result: Array<ItemType> = [];
+        let result: ItemType[] = [];
         if (this[this.itemType]) {
             Object.values(this[this.itemType]).some(variable => {
                 if (matchItem(name, variable, defaultedOptions.mode)) {
                     result.push(variable);
-                    if (defaultedOptions.firstOnly === true) {
+                    if (defaultedOptions.firstOnly) {
                         return true;
                     }
                 }
@@ -2085,12 +1981,12 @@ abstract class ItemGroup extends BasicFunctions {
      * @param {Object} [additionalProps] If provided, these properties will be added.
      * @returns {String|Array} String with formatted items or an array with item details.
      */
-    getFormattedItems (format: 'json' | 'csv', addItemGroupId = false, additionalProps?: object): string|Array<object> {
+    getFormattedItems (format: 'json' | 'csv', addItemGroupId = false, additionalProps?: object): string|object[] {
         const items = this.getItems();
-        const result: Array<object> = [];
+        const result: object[] = [];
         Object.values(items).forEach((item: ItemType) => {
             let updatedItem: any = {};
-            if (addItemGroupId === true) {
+            if (addItemGroupId) {
                 updatedItem = { itemGroup: this.id, ...item };
             } else {
                 updatedItem = { ...item };
@@ -2104,6 +2000,7 @@ abstract class ItemGroup extends BasicFunctions {
             // Remove all properties, which are Objects
             for (const prop in updatedItem) {
                 if (typeof updatedItem[prop] === 'object') {
+                    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
                     delete updatedItem[prop];
                 }
             }
@@ -2131,11 +2028,11 @@ interface DatasetParameters {
  * Dataset class.
  */
 class Dataset extends ItemGroup {
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     description?: object;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     dataStructure?: object;
-    constructor ({ id, name, label, description, dataStructure, datasetVariables = {}, href, coreObject } : DatasetParameters = {}) {
+    constructor ({ id, name, label, description, dataStructure, datasetVariables = {}, href, coreObject }: DatasetParameters = {}) {
         super({ id, name, label, itemType: 'datasetVariables', href, coreObject });
         this.description = description;
         this.dataStructure = dataStructure;
@@ -2170,7 +2067,7 @@ interface AnalysisVariableSetParameters {
  * Analysis Variable Set class. Extends ItemGroup class.
  */
 class AnalysisVariableSet extends ItemGroup {
-    constructor ({ id, name, label, analysisVariables = {}, href, coreObject }: AnalysisVariableSetParameters= {}) {
+    constructor ({ id, name, label, analysisVariables = {}, href, coreObject }: AnalysisVariableSetParameters = {}) {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
         this.analysisVariables = analysisVariables;
     }
@@ -2226,7 +2123,7 @@ class Domain extends ItemGroup {
                 });
                 if (Array.isArray(scenariosRaw)) {
                     scenariosRaw.some(scRaw => {
-                        if (scRaw._links && scRaw._links.self && scRaw._links.self.href === scenario.href) {
+                        if (scRaw?._links?.self?.href === scenario.href) {
                             scenario.parseResponse(scRaw);
                             return true;
                         }
@@ -2256,16 +2153,15 @@ interface ScenarioParameters {
  * Scenario class.
 */
 class Scenario extends BasicFunctions {
-
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     domain?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     scenario?: string;
-     /** CDISC Library attribute. Value of the _links.self.type. */
+    /** CDISC Library attribute. Value of the _links.self.type. */
     type?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     fields?: { [name: string]: Field };
-     /** CLA Wrapper attribute. Item group class ID. */
+    /** CLA Wrapper attribute. Item group class ID. */
     id?: string;
 
     constructor ({ id, domain, scenario, type, fields = {}, href, coreObject }: ScenarioParameters = {}) {
@@ -2295,7 +2191,7 @@ class Scenario extends BasicFunctions {
         if (Array.isArray(raw.fields)) {
             raw.fields.forEach((itemRaw: any) => {
                 let href;
-                if (itemRaw._links && itemRaw._links.self) {
+                if (itemRaw?._links?.self) {
                     href = itemRaw._links.self.href;
                 }
                 const item = new Field({
@@ -2308,7 +2204,7 @@ class Scenario extends BasicFunctions {
             });
         }
         if (raw.hasOwnProperty('_links')) {
-            if (raw._links.self && raw._links.self.type) {
+            if (raw?._links?.self?.type) {
                 this.type = raw._links.self.type;
             }
         }
@@ -2329,7 +2225,7 @@ class Scenario extends BasicFunctions {
      *
      * @returns {Array} An array with item names.
      */
-    getNameList (): Array<string> {
+    getNameList (): string[] {
         return ((new Domain(this)).getNameList());
     }
 
@@ -2340,20 +2236,9 @@ class Scenario extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): Array<ItemType> {
+    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
         return ((new Domain(this)).findMatchingItems(name, options));
     }
-}
-
-/**
- * CodeList Term.
- */
-interface Term {
-    conceptId: string;
-    submissionValue: string;
-    definition: string;
-    preferredTerm: string;
-    synonyms: Array<string>;
 }
 
 /**
@@ -2367,7 +2252,7 @@ interface CodeListParameters {
     definition?: string;
     preferredTerm?: string;
     synonyms?: string;
-    terms?: Array <Term>;
+    terms?: Term[];
     href?: string;
     coreObject?: CoreObject;
 }
@@ -2376,22 +2261,22 @@ interface CodeListParameters {
  * CodeList class.
  */
 class CodeList extends BasicFunctions {
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     conceptId?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     name?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     extensible?: boolean;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     submissionValue?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     definition?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     preferredTerm?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     synonyms?: string;
-     /** CDISC Library attribute. */
-    terms?: Array <Term>;
+    /** CDISC Library attribute. */
+    terms?: Term[];
 
     constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject }: CodeListParameters = {}) {
         super();
@@ -2437,7 +2322,7 @@ class CodeList extends BasicFunctions {
      * @param {String} [format=json] Specifies the output format. Possible values: json, csv.
      * @returns {String} Formatted codeList terms.
      */
-    getFormattedTerms (format: 'json' | 'csv' = 'json'): Array<Term>|string {
+    getFormattedTerms (format: 'json' | 'csv' = 'json'): Term[]|string {
         return convertToFormat(this.terms, format);
     }
 
@@ -2446,8 +2331,8 @@ class CodeList extends BasicFunctions {
      *
      * @returns {Array} List of CT versions.
      */
-    async getVersions (): Promise<Array<string>> {
-        const result: Array<string> = [];
+    async getVersions (): Promise<string[]> {
+        const result: string[] = [];
         if (this.conceptId) {
             const rootHref = '/mdr/root/ct/sdtmct/codelists/' + this.conceptId;
             const response = await this.coreObject.apiRequest(rootHref);
@@ -2482,19 +2367,19 @@ interface ItemParameters {
  */
 abstract class Item extends BasicFunctions {
     id?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     ordinal?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     name?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     label?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     simpleDatatype?: string;
-     /** CDISC Library attribute. C-Code of the codelist. */
+    /** CDISC Library attribute. C-Code of the codelist. */
     codelist?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     codelistHref?: string;
-     /** CDISC Library attribute. Value of the _links.self.type. */
+    /** CDISC Library attribute. Value of the _links.self.type. */
     type?: string;
 
     constructor ({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, type, href, coreObject }: ItemParameters = {}) {
@@ -2534,11 +2419,11 @@ abstract class Item extends BasicFunctions {
             if (itemRaw._links.codelist && Array.isArray(itemRaw._links.codelist) && itemRaw._links.codelist.length > 0 && itemRaw._links.codelist[0].href) {
                 this.codelistHref = itemRaw._links.codelist[0].href;
                 this.codelist = itemRaw._links.codelist[0].href.replace(/.*\/(\S+)/, '$1');
-            } else if (itemRaw._links.codelist && itemRaw._links.codelist.href) {
+            } else if (itemRaw?._links?.codelist?.href) {
                 this.codelistHref = itemRaw._links.codelist.href;
                 this.codelist = itemRaw._links.codelist.href.replace(/.*\/(\S+)/, '$1');
             }
-            if (itemRaw._links.self && itemRaw._links.self.type) {
+            if (itemRaw?._links?.self?.type) {
                 this.type = itemRaw._links.self.type;
             }
         }
@@ -2556,7 +2441,7 @@ abstract class Item extends BasicFunctions {
             if (rootCodeListRaw === undefined) {
                 return;
             }
-            if (rootCodeListRaw._links && rootCodeListRaw._links.versions) {
+            if (rootCodeListRaw?._links?.versions) {
                 let href;
                 if (ctVer) {
                     rootCodeListRaw._links.versions.some((version: any) => {
@@ -2591,7 +2476,7 @@ interface VariableParameters {
     simpleDatatype?: string;
     role?: string;
     roleDescription?: string;
-    valueList?: Array<string>;
+    valueList?: string[];
     codelist?: string;
     codelistHref?: string;
     describedValueDomain?: string;
@@ -2604,17 +2489,17 @@ interface VariableParameters {
  * Variable class
  */
 class Variable extends Item {
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     description?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     core?: string;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
     role?: string;
-     /** CDISC Library attribute. In most cases identical to role, but in some cases contains further explanation of the role attribute. */
+    /** CDISC Library attribute. In most cases identical to role, but in some cases contains further explanation of the role attribute. */
     roleDescription?: string;
-     /** CDISC Library attribute. */
-    valueList?: Array<string>;
-     /** CDISC Library attribute. */
+    /** CDISC Library attribute. */
+    valueList?: string[];
+    /** CDISC Library attribute. */
     describedValueDomain?: string;
 
     constructor ({
@@ -2717,7 +2602,7 @@ class Field extends Item {
         this.implementationNotes = fRaw.implementationNotes;
         this.mappingInstructions = fRaw.mappingInstructions;
         if (fRaw.hasOwnProperty('_links')) {
-            if (fRaw._links.sdtmigDatasetMappingTargets && fRaw._links.sdtmigDatasetMappingTargets.href) {
+            if (fRaw?._links?.sdtmigDatasetMappingTargets?.href) {
                 this.sdtmigDatasetMappingTargetsHref = fRaw._links.sdtmigDatasetMappingTargets.href;
             }
         }

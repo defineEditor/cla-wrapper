@@ -30,22 +30,24 @@
     ],
     "license": "MIT",
     "dependencies": {
-        "json2csv": "^4.5.2",
+        "@types/json2csv": "^5.0.1",
+        "@types/request": "^2.48.5",
+        "json2csv": "^5.0.0",
         "request": "^2.88.2"
     },
     "devDependencies": {
         "@types/node": "",
         "@typescript-eslint/eslint-plugin": "",
         "@typescript-eslint/parser": "",
-        "eslint-config-standard-with-typescript": "",
-        "typedoc": "",
-        "typescript": "^4.0.0",
         "docdash": "^1.1.1",
         "eslint": "^7.0.0",
         "eslint-config-standard": "^14.1.1",
+        "eslint-config-standard-with-typescript": "",
         "eslint-plugin-import": "^2.20.2",
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-promise": "^4.2.1",
-        "eslint-plugin-standard": "^4.0.1"
+        "eslint-plugin-standard": "^4.0.1",
+        "typedoc": "",
+        "typescript": "^4.0.0"
     }
 }

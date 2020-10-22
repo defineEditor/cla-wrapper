@@ -6,7 +6,7 @@
  * @param mode {String} Matching mode: full - match only full names, partial - match partial names. Partial does not apply items using  '-' or '*' and falls back to full mode for these items.
  * @returns {Bool} True if matched, false otherwise
  */
-const matchItem = (name, item, mode) => {
+const matchItem = (name: string, item: any, mode: string): boolean => {
     let result = false;
     if (mode === 'full' || (mode === 'partial' && (item.name.includes('*') || item.name.includes('-')))) {
         // For *DT even in partial mode a full comparison is used, otherwise it makes no sense as everything will match *
@@ -48,4 +48,4 @@ const matchItem = (name, item, mode) => {
     return result;
 };
 
-module.exports = matchItem;
+export default matchItem;

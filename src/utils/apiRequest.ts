@@ -1,8 +1,20 @@
-const { promisify } = require('util');
-const request = promisify(require('request'));
+import requestLib from 'request';
+import { promisify } from 'util';
+import { ClCache } from '../interfaces/interfaces';
 
-const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache }) => {
-    const req = {
+const request = promisify(requestLib);
+
+interface ApiRequestParameters {
+    username?: string;
+    password?: string;
+    apiKey?: string;
+    url?: string;
+    headers?: any;
+    cache?: ClCache;
+}
+
+const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache }: ApiRequestParameters): Promise<requestLib.Response> => {
+    const req: any = {
         url,
         headers: {
             Accept: 'application/json',
@@ -24,7 +36,7 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
         // Set encoding to null, as response is binary
         req.encoding = null;
     }
-    let response = {};
+    let response: any = {};
     if (cache !== undefined && typeof cache.match === 'function') {
         // If cache function is available, check cache first
         response = await cache.match(req);
@@ -32,7 +44,7 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
             response = await request(req);
             // Add the reponse to cache
             if (response.statusCode === 200) {
-                cache.put(req, response);
+                await cache.put(req, response);
             }
         }
     } else {
@@ -41,4 +53,4 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
     return response;
 };
 
-module.exports = apiRequest;
+export default apiRequest;
