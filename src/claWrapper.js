@@ -1,6 +1,7 @@
 const apiRequest = require('./utils/apiRequest.js');
 const convertToFormat = require('./utils/convertToFormat.js');
 const matchItem = require('./utils/matchItem.js');
+const toSimpleObject = require('./utils/toSimpleObject.js');
 
 /**
  * MatchingOptions
@@ -154,14 +155,7 @@ class BasicFunctions {
      * @returns {Object} A new object
      */
     toSimpleObject () {
-        const result = {};
-        for (const prop in this) {
-            // Remove all techical or inherited properties
-            if (prop !== 'coreObject' && this.hasOwnProperty(prop)) {
-                result[prop] = this[prop];
-            }
-        }
-        return result;
+        return toSimpleObject(this);
     }
 }
 
