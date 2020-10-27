@@ -1,3 +1,6 @@
+const { CdiscLibrary } = require('../src/claWrapper');
+
+const cl = new CdiscLibrary({ baseUrl: 'http://localhost:4600/api' });
 let pg;
 
 beforeAll(async () => {
@@ -5,9 +8,6 @@ beforeAll(async () => {
     pg = pc.getProductGroups()['sdtmig'];
 });
 
-const { CdiscLibrary } = require('../src/claWrapper');
-
-const cl = new CdiscLibrary({ baseUrl: 'http://localhost:4600/api' });
 
 describe('Data Class', () => {
     it('Get itemGroups', async () => {
