@@ -11,7 +11,7 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
     };
     if (apiKey !== undefined) {
         // OAuth2 authentication
-        req.headers['Ocp-Apim-Subscription-Key'] = apiKey;
+        req.headers['api-key'] = apiKey;
     } else {
         // Basic authentication
         req.auth = {
