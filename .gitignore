@@ -3,3 +3,6 @@ src/*.dev.js
 node_modules
 data
 .vscode
+coverage
+dist
+test
