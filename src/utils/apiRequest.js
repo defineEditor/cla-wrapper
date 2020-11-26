@@ -9,7 +9,7 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
             ...headers,
         },
     };
-    if (apiKey !== undefined) {
+    if (apiKey !== undefined && apiKey !== '') {
         // OAuth2 authentication
         req.headers['api-key'] = apiKey;
     } else {

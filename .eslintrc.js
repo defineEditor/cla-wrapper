@@ -2,7 +2,8 @@ module.exports = {
     "env": {
         "browser": true,
         "es6": true,
-        "node": true
+        "node": true,
+        "jest/globals": true
     },
     "extends": ["eslint:recommended", "standard"],
     "globals": {
@@ -13,7 +14,7 @@ module.exports = {
         "ecmaVersion": 11,
         "sourceType": "module"
     },
-    plugins: ["standard"],
+    plugins: ["jest", "standard"],
     "rules": {
         indent: ['error', 4, { SwitchCase: 1 }],
         'linebreak-style': ['error', 'unix'],

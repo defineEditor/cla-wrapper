@@ -6,3 +6,6 @@ data
 coverage
 dist
 test
+dist
+test/__snapshots__
+*.log
