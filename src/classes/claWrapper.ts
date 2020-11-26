@@ -1,6 +1,7 @@
 import apiRequest from '../utils/apiRequest';
 import convertToFormat from '../utils/convertToFormat';
 import matchItem from '../utils/matchItem';
+import toSimpleObject from '../utils/toSimpleObject';
 import {
     MatchingOptions, GetItemGroupOptions, GetItemGroupsOptions, ClCache,
     Traffic, Term, ApiRequestOptions, ProductDetails, ProductDependency
@@ -180,15 +181,8 @@ abstract class BasicFunctions {
      *
      * @returns {Object} A new object
      */
-    toSimpleObject (): object {
-        const result: { [name: string]: any} = {};
-        for (const prop in this) {
-            // Remove all techical or inherited properties
-            if (prop !== 'coreObject' && this.hasOwnProperty(prop)) {
-                result[prop] = this[prop];
-            }
-        }
-        return result;
+    toSimpleObject (): any {
+        return toSimpleObject(this);
     }
 }
 

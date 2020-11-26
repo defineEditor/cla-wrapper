@@ -24,7 +24,7 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
     if (apiKey !== undefined && apiKey !== '') {
         // OAuth2 authentication
         req.headers['api-key'] = apiKey;
-    } else {
+    } else if (username !== undefined && password !== undefined) {
         // Basic authentication
         req.auth = {
             user: username,

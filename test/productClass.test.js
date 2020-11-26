@@ -1,4 +1,4 @@
-const { CdiscLibrary } = require('../src/claWrapper');
+const { CdiscLibrary } = require('../dist/classes/claWrapper');
 
 const cl = new CdiscLibrary({ baseUrl: 'http://localhost:4600/api' });
 

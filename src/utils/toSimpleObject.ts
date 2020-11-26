@@ -1,11 +1,8 @@
 /**
  * Convert an object to a simple object, removes methods and technical elements (e.g., coreObject).
- * @param object {String} - name to match
- *
- * @returns {Object} A new object
  */
-const toSimpleObject = (obj) => {
-    const result = {};
+const toSimpleObject = (obj: any): object => {
+    const result: any = {};
     for (const prop in obj) {
         // Remove all techical or inherited properties
         if (prop !== 'coreObject' && Object.prototype.hasOwnProperty.call(obj, prop)) {
@@ -23,4 +20,4 @@ const toSimpleObject = (obj) => {
     return result;
 };
 
-module.exports = toSimpleObject;
+export default toSimpleObject;
