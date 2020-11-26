@@ -7,7 +7,7 @@ beforeAll(async () => {
     product = await cl.getFullProduct('adamig11');
 });
 
-describe('Data Class', () => {
+describe('Product', () => {
     it('Find matching items', async () => {
         const items1 = product.findMatchingItems('TR12PG1');
         expect(items1[0].name).toBe('TRxxPGy');

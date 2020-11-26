@@ -1769,7 +1769,7 @@ class ItemGroup extends BasicFunctions {
      *
      * @returns {Object|undefined} An object with variable/field if found
      */
-    async getItem (name) {
+    getItem (name) {
         let result;
 
         Object.values(this.getItems()).some(item => {
