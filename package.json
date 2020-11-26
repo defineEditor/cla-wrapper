@@ -1,11 +1,12 @@
 {
     "name": "cla-wrapper",
-    "version": "0.2.7",
+    "version": "0.3.0",
     "description": "Wrapper for CDISC Library API",
-    "main": "src/claWrapper.js",
+    "main": "dist/classes/claWrapper.js",
     "scripts": {
         "test": "jest -c jest.config.js --coverage --verbose",
-        "docs": "jsdoc -c jsdoc.json"
+        "build": "tsc",
+        "docs": "typedoc"
     },
     "repository": "https://github.com/defineEditor/cla-wrapper",
     "author": "Dmitry Kolosov",
@@ -31,17 +32,25 @@
     "license": "MIT",
     "dependencies": {
         "jest": "^26.6.0",
-        "json2csv": "^4.5.2",
+        "@types/json2csv": "^5.0.1",
+        "@types/request": "^2.48.5",
+        "json2csv": "^5.0.0",
         "request": "^2.88.2"
     },
     "devDependencies": {
+        "@types/node": "",
+        "@typescript-eslint/eslint-plugin": "",
+        "@typescript-eslint/parser": "",
         "docdash": "^1.1.1",
         "eslint": "^7.12.0",
         "eslint-config-standard": "^14.1.1",
+        "eslint-config-standard-with-typescript": "",
         "eslint-plugin-import": "^2.20.2",
         "eslint-plugin-jest": "^24.1.0",
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-promise": "^4.2.1",
-        "eslint-plugin-standard": "^4.0.1"
+        "eslint-plugin-standard": "^4.0.1",
+        "typedoc": "",
+        "typescript": "^4.0.0"
     }
 }
