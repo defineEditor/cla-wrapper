@@ -31,8 +31,6 @@ interface Items {
  * CoreObject constructor parameters.
  */
 interface CoreObjectParameters {
-    username?: string;
-    password?: string;
     apiKey?: string;
     baseUrl?: string;
     cache?: ClCache;
@@ -43,10 +41,6 @@ class CoreObject {
     /**
      * CDISC Library Core Object which contains API request functions and technical information.
     */
-    /**  CDISC Library username. Used in case of Basic Authentication. */
-    username?: string;
-    /**  CDISC Library password. Used in case of Basic Authentication. */
-    password?: string;
     /**  CDISC Library API primary key. Used in case of OAuth2 Authentication. */
     apiKey?: string;
     /**  A base URL for the library. */
@@ -57,15 +51,11 @@ class CoreObject {
     traffic?: Traffic;
 
     constructor ({
-        username,
-        password,
         apiKey,
         baseUrl,
         cache,
         traffic
     }: CoreObjectParameters) {
-        this.username = username;
-        this.password = password;
         this.apiKey = apiKey;
         this.cache = cache;
         if (baseUrl !== undefined) {
@@ -95,8 +85,6 @@ class CoreObject {
         // Default options
         try {
             const response: any = await apiRequest({
-                username: this.username,
-                password: this.password,
                 apiKey: this.apiKey,
                 url: this.baseUrl + endpoint,
                 headers,
@@ -204,15 +192,13 @@ class CdiscLibrary {
     productClasses: ProductClasses;
     /*
      * @param {Object} params
-     * @param {String} params.username {@link CoreObject.username}
-     * @param {String} params.password {@link CoreObject.password}
      * @param {String} params.apiKey {@link CoreObject.apiKey}
      * @param {String} [params.baseUrl=https://library.cdisc.org/api] {@link CoreObject.baseUrl}
      * @param {Object} [cache] {@link CoreObject.cache}
      * @param {Object} [traffic] {@link CoreObject.traffic}
      */
-    constructor ({ username, password, apiKey, baseUrl, cache, traffic, productClasses }: CdiscLibraryParameters = {}) {
-        this.coreObject = new CoreObject({ username, password, apiKey, baseUrl, cache, traffic });
+    constructor ({ apiKey, baseUrl, cache, traffic, productClasses }: CdiscLibraryParameters = {}) {
+        this.coreObject = new CoreObject({ apiKey, baseUrl, cache, traffic });
         this.productClasses = productClasses;
     }
 
@@ -331,6 +317,25 @@ class CdiscLibrary {
     }
 
     /**
+     * Get product group
+     *
+     * @param name Valid product group name.
+     * @returns Product group or a blank
+     */
+    async getProductGroup (name: string): Promise<ProductGroup> {
+        let result: ProductGroup;
+        const pcList: string[] = await this.getProductClassList();
+        pcList.some(pcId => {
+            let tempRes = this.productClasses[pcId].getProductGroup(name);
+            if (tempRes !== undefined) {
+                result = tempRes;
+                return true;
+            }
+        });
+        return result;
+    }
+
+    /**
      * Get a list of product IDs
      *
      * @param format Specifies the output format. Possible values: json, csv.
@@ -396,7 +401,7 @@ class CdiscLibrary {
      * Get an object with all datasets/domains/dataStructure for a specific product
      * <br> This method does not update the main object
      *
-     * @param alias Product alias
+     * @param productAlias Product alias
      * @param options @GetItemGroupsOptions
      * @returns An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
@@ -580,6 +585,24 @@ class ProductClass extends BasicFunctions {
     }
 
     /**
+     * Get a product group
+     *
+     * @param name Valid product group name.
+     * @returns Product group or a blank
+     */
+    getProductGroup (name: string): ProductGroup {
+        let result: ProductGroup;
+        const pgList: string[] = this.getProductGroupList();
+        pgList.some(pgId => {
+            if (pgId.toLowerCase() === name.toLowerCase()) {
+                result = this.productGroups[pgId];
+                return true;
+            }
+        });
+        return result;
+    }
+
+    /**
      * Get a list of product IDs
      *
      * @param Specifies the output format. Possible values: json, csv.
@@ -618,6 +641,7 @@ class ProductClass extends BasicFunctions {
      * Get an object with all datasets/domains/dataStructure
      * <br> This method does not update the main object
      *
+     * @param productAlias Product alias
      * @param options @GetItemGroupsOptions
      * @returns An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
@@ -729,11 +753,11 @@ class ProductGroup extends BasicFunctions {
             productId = productList.find(id => (alias.toLowerCase() === id.toLowerCase()));
             // Remove - and .
             if (!productId) {
-                productId = productList.find(id => (alias.toLowerCase().replace(/[-.]/g, '') === id.toLowerCase().replace(/[-.]/g, '')));
+                productId = productList.find(id => (alias.toLowerCase().replace(/[-. ]/g, '') === id.toLowerCase().replace(/[-. ]/g, '')));
             }
             // Search by substring
             if (!productId) {
-                productId = productList.find(id => (id.toLowerCase().replace(/[-.]/g, '')).includes(alias.toLowerCase().replace(/[-.]/g, '')));
+                productId = productList.find(id => (id.toLowerCase().replace(/[-. ]/g, '')).includes(alias.toLowerCase().replace(/[-. ]/g, '')));
             }
         }
         if (productId) {
@@ -786,6 +810,7 @@ class ProductGroup extends BasicFunctions {
      * Get an object with all datasets/domains/dataStructure
      * <br> This method does not update the main object
      *
+     * @param productAlias Product alias
      * @param {GetItemGroupsOptions} options {@link GetItemGroupsOptions}
      * @returns {Object} An object with datasets/domains/dataStructures
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
@@ -1014,6 +1039,10 @@ class Product extends BasicFunctions {
                     coreObject: this.coreObject
                 });
                 codeList.parseResponse(codeListRaw);
+                if (codeList.href === undefined && this.href !== undefined) {
+                    // Build href using the CT href
+                    codeList.href = this.href + '/codelists/' + codeList.conceptId;
+                }
                 codelists[codeList.conceptId] = codeList;
             });
             this.codelists = codelists;
@@ -1741,17 +1770,19 @@ class DataClass extends BasicFunctions {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
         let result: ItemType[] = [];
-        if (this.datasets) {
-            Object.values(this.datasets).some(dataset => {
-                const matches = dataset.findMatchingItems(name, defaultedOptions);
-                if (matches.length > 0) {
-                    result = result.concat(matches);
-                    if (defaultedOptions.firstOnly) {
-                        return true;
+        ['datasets', 'domains'].forEach((dataType: 'datasets' | 'domains') => {
+            if (this[dataType]) {
+                Object.values(this[dataType]).some((itemGroup: ItemGroup) => {
+                    const matches = itemGroup.findMatchingItems(name, defaultedOptions);
+                    if (matches.length > 0) {
+                        result = result.concat(matches);
+                        if (defaultedOptions.firstOnly) {
+                            return true;
+                        }
                     }
-                }
-            });
-        }
+                });
+            }
+        });
         if (this.classVariables && !(defaultedOptions.firstOnly && result.length > 0)) {
             for (const variable of Object.values(this.classVariables)) {
                 if (matchItem(name, variable, defaultedOptions.mode)) {
@@ -2327,8 +2358,10 @@ class CodeList extends BasicFunctions {
      */
     async getVersions (): Promise<string[]> {
         const result: string[] = [];
-        if (this.conceptId) {
-            const rootHref = '/mdr/root/ct/sdtmct/codelists/' + this.conceptId;
+        if (this.href && this.conceptId) {
+            // Get CT type from href for the root href
+            const ctType = this.href.replace(/.*\/ct\/packages\/(.*?)-.*/, '$1');
+            const rootHref = `/mdr/root/ct/${ctType}/codelists/` + this.conceptId;
             const response = await this.coreObject.apiRequest(rootHref);
             if (typeof response === 'object' && response._links && Array.isArray(response._links.versions)) {
                 response._links.versions.forEach((version: any) => {

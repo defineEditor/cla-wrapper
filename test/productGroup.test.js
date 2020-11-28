@@ -9,7 +9,7 @@ beforeAll(async () => {
 });
 
 
-describe('Data Class', () => {
+describe('Product Group', () => {
     it('Get itemGroups', async () => {
         const domains = await pg.getItemGroups('sdtmig32');
         expect(Object.keys(domains)).toMatchSnapshot();
@@ -23,8 +23,10 @@ describe('Data Class', () => {
         expect(pList[0].startsWith('sdtmig')).toBe(true);
     });
     it('Product ID by Alias', async () => {
-        const id = await pg.getProductIdByAlias('sdtmig33');
+        let id = await pg.getProductIdByAlias('sdtmig33');
         expect(id.productId).toBe('sdtmig-3-3');
+        id = await pg.getProductIdByAlias('sdtm-ig 3.2');
+        expect(id.productId).toBe('sdtmig-3-2');
     });
     it('Product List', async () => {
         const pl = await pg.getProductList();

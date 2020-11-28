@@ -5,15 +5,13 @@ import { ClCache } from '../interfaces/interfaces';
 const request = promisify(requestLib);
 
 interface ApiRequestParameters {
-    username?: string;
-    password?: string;
     apiKey?: string;
     url?: string;
     headers?: any;
     cache?: ClCache;
 }
 
-const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache }: ApiRequestParameters): Promise<requestLib.Response> => {
+const apiRequest = async ({ apiKey, url, headers = {}, cache }: ApiRequestParameters): Promise<requestLib.Response> => {
     const req: any = {
         url,
         headers: {
@@ -24,13 +22,6 @@ const apiRequest = async ({ username, password, apiKey, url, headers = {}, cache
     if (apiKey !== undefined && apiKey !== '') {
         // OAuth2 authentication
         req.headers['api-key'] = apiKey;
-    } else if (username !== undefined && password !== undefined) {
-        // Basic authentication
-        req.auth = {
-            user: username,
-            pass: password,
-            sendImmediately: false
-        };
     }
     if (headers.Accept && headers.Accept === 'application/vnd.ms-excel') {
         // Set encoding to null, as response is binary

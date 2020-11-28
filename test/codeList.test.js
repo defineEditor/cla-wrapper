@@ -11,9 +11,8 @@ beforeAll(async () => {
 
 describe('Dataset', () => {
     it('Get versions', async () => {
-        // const result = await codeList.getVersions();
-        const result = {};
-        expect(Object.keys(result).length).toBe(30);
+        const result = await codeList.getVersions();
+        expect(Object.keys(result).length).toBeGreaterThan(5);
     });
     it('Get formatted terms', async () => {
         const result = codeList.getFormattedTerms('csv', true);
