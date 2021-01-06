@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import qs from 'qs';
+import { SearchResponse } from '../classes/searchResponse';
 import apiRequest from '../utils/apiRequest';
 import convertToFormat from '../utils/convertToFormat';
 import matchItem from '../utils/matchItem';
 import toSimpleObject from '../utils/toSimpleObject';
 import {
     MatchingOptions, GetItemGroupOptions, GetItemGroupsOptions, ClCache,
-    Traffic, Term, ApiRequestOptions, ProductDetails, ProductDependency
+    Traffic, Term, ApiRequestOptions, ProductDetails, ProductDependency, SearchParameters
 } from '../interfaces/interfaces';
 
 const defaultMatchingOptions: MatchingOptions = { mode: 'full', firstOnly: false };
@@ -37,7 +40,7 @@ interface CoreObjectParameters {
     traffic?: Traffic;
 }
 
-class CoreObject {
+export class CoreObject {
     /**
      * CDISC Library Core Object which contains API request functions and technical information.
     */
@@ -181,7 +184,7 @@ interface CdiscLibraryParameters extends CoreObjectParameters {
     productClasses?: ProductClasses;
 }
 
-class CdiscLibrary {
+export class CdiscLibrary {
     /**
      * CDISC Library Main class
     */
@@ -190,13 +193,7 @@ class CdiscLibrary {
     coreObject: CoreObject;
     /** An object with product classes. */
     productClasses: ProductClasses;
-    /*
-     * @param {Object} params
-     * @param {String} params.apiKey {@link CoreObject.apiKey}
-     * @param {String} [params.baseUrl=https://library.cdisc.org/api] {@link CoreObject.baseUrl}
-     * @param {Object} [cache] {@link CoreObject.cache}
-     * @param {Object} [traffic] {@link CoreObject.traffic}
-     */
+
     constructor ({ apiKey, baseUrl, cache, traffic, productClasses }: CdiscLibraryParameters = {}) {
         this.coreObject = new CoreObject({ apiKey, baseUrl, cache, traffic });
         this.productClasses = productClasses;
@@ -326,7 +323,7 @@ class CdiscLibrary {
         let result: ProductGroup;
         const pcList: string[] = await this.getProductClassList();
         pcList.some(pcId => {
-            let tempRes = this.productClasses[pcId].getProductGroup(name);
+            const tempRes = this.productClasses[pcId].getProductGroup(name);
             if (tempRes !== undefined) {
                 result = tempRes;
                 return true;
@@ -382,7 +379,7 @@ class CdiscLibrary {
      * @param options @GetItemGroupOptions
      * @returns Dataset/DataStructure/Domain
      */
-    async getItemGroup (name: string, productAlias: string, options: GetItemGroupOptions): Promise<ItemGroupType|string> {
+    async getItemGroup (name: string, productAlias: string, options?: GetItemGroupOptions): Promise<ItemGroupType|string> {
         let result;
         const defaultedOptions = { ...defaultGetItemGroupOptions, ...options };
         if (!this.productClasses) {
@@ -520,12 +517,76 @@ class CdiscLibrary {
         delete this.productClasses;
         this.productClasses = undefined;
     }
+
+    /**
+     * Search.
+     *
+     * @param params Object with search parameters
+     * @param params.query Query for search
+     * @param params.scopes Object with scopes (e.g., { product: 'ADaMIG v1.1' })
+     * @param params.loadAll [true] Load all hits. If set to false only the number of hits specified in pageSize will be loaded.
+     * @param params.pageSize Search result page size
+     * @param params.highlights Array of strings to highlight
+     * @param params.start Search start
+     * @param params.pageSize Search result page size
+     * @returns Search response with array of hits.
+     */
+    async search (params: SearchParameters): Promise<SearchResponse> {
+        const { query, scopes = {}, highlights } = params;
+        const searchParams = {
+            q: query,
+            ...scopes,
+            highlights,
+            start: params.start || 0,
+            pageSize: params.pageSize || 250,
+        };
+        const loadAll = params.loadAll ?? true;
+
+        let result: SearchResponse;
+
+        const href = '/mdr/search?' + qs.stringify(searchParams);
+        let rawResult = await this.coreObject.apiRequest(href);
+        if (Object.keys(rawResult).length > 0) {
+            result = new SearchResponse(rawResult);
+        } else {
+            throw Error('Search request failed.');
+        }
+
+        if (loadAll && rawResult.hasMore === true) {
+            searchParams.start = searchParams.start + searchParams.pageSize;
+            searchParams.pageSize = result.totalHits - searchParams.pageSize;
+            const href = '/mdr/search?' + qs.stringify(searchParams);
+            rawResult = await this.coreObject.apiRequest(href);
+            result.addHits(rawResult.hits);
+        }
+
+        return result;
+    }
+
+    /** Get a list of scopes
+     * @returns Array of scope names.
+     */
+    async getScopeList (): Promise<{ [name: string]: string }> {
+        const result = await this.coreObject.apiRequest('/mdr/search/scopes');
+        return result.scopes;
+    }
+
+    /**
+     * Get search scope.
+     *
+     * @param name Name of the scope to retrive.
+     * @returns List of values for the scope.
+     */
+    async getScope (name: string): Promise<string[]> {
+        const rawResult = await this.coreObject.apiRequest('/mdr/search/scopes/' + name);
+        return rawResult.values;
+    }
 }
 
 /**
  * Product class
  */
-class ProductClass extends BasicFunctions {
+export class ProductClass extends BasicFunctions {
     /** Product class name. */
     name: string;
     /** An object with Product Groups. */
@@ -682,7 +743,7 @@ class ProductClass extends BasicFunctions {
 /**
  * Product Group class
  */
-class ProductGroup extends BasicFunctions {
+export class ProductGroup extends BasicFunctions {
     /** Product group name. */
     name: string;
     /** An object with products. */
@@ -861,7 +922,7 @@ interface ProductParameters {
 /**
  * Product class
  */
-class Product extends BasicFunctions {
+export class Product extends BasicFunctions {
     /** CLA Wrapper attribute. Product ID. */
     id?: string;
     /** CDISC Library attribute. */
@@ -1374,7 +1435,7 @@ interface DataStructureParameters {
 /**
  * Data Structure class
  */
-class DataStructure extends BasicFunctions {
+export class DataStructure extends BasicFunctions {
     /** CLA Wrapper attribute. Data structure ID. */
     id?: string;
     /** CDISC Library attribute. */
@@ -1551,7 +1612,7 @@ interface DataClassParameters {
 /**
  * Dataset Class class
  */
-class DataClass extends BasicFunctions {
+export class DataClass extends BasicFunctions {
     /** CLA Wrapper attribute. Data class ID. */
     id?: string;
     /** CDISC Library attribute. */
@@ -2052,7 +2113,7 @@ interface DatasetParameters {
 /**
  * Dataset class.
  */
-class Dataset extends ItemGroup {
+export class Dataset extends ItemGroup {
     /** CDISC Library attribute. */
     description?: object;
     /** CDISC Library attribute. */
@@ -2091,7 +2152,7 @@ interface AnalysisVariableSetParameters {
 /**
  * Analysis Variable Set class. Extends ItemGroup class.
  */
-class AnalysisVariableSet extends ItemGroup {
+export class AnalysisVariableSet extends ItemGroup {
     constructor ({ id, name, label, analysisVariables = {}, href, coreObject }: AnalysisVariableSetParameters = {}) {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
         this.analysisVariables = analysisVariables;
@@ -2124,7 +2185,7 @@ interface DomainParameters {
 /**
  * Domain class.
  */
-class Domain extends ItemGroup {
+export class Domain extends ItemGroup {
     constructor ({ id, name, label, fields = {}, scenarios, href, coreObject }: DomainParameters = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
         this.fields = fields;
@@ -2177,7 +2238,7 @@ interface ScenarioParameters {
 /**
  * Scenario class.
 */
-class Scenario extends BasicFunctions {
+export class Scenario extends BasicFunctions {
     /** CDISC Library attribute. */
     domain?: string;
     /** CDISC Library attribute. */
@@ -2285,7 +2346,7 @@ interface CodeListParameters {
 /**
  * CodeList class.
  */
-class CodeList extends BasicFunctions {
+export class CodeList extends BasicFunctions {
     /** CDISC Library attribute. */
     conceptId?: string;
     /** CDISC Library attribute. */
@@ -2515,7 +2576,7 @@ interface VariableParameters {
 /**
  * Variable class
  */
-class Variable extends Item {
+export class Variable extends Item {
     /** CDISC Library attribute. */
     description?: string;
     /** CDISC Library attribute. */
@@ -2584,7 +2645,7 @@ interface FieldParameters {
 /**
  * CDASH Field class
  */
-class Field extends Item {
+export class Field extends Item {
     /** CDISC Library attribute. */
     definition?: string;
     /** CDISC Library attribute. */
@@ -2635,18 +2696,3 @@ class Field extends Item {
         }
     }
 }
-
-module.exports = {
-    CdiscLibrary,
-    ProductClass,
-    ProductGroup,
-    Product,
-    DataStructure,
-    Dataset,
-    Domain,
-    DataClass,
-    AnalysisVariableSet,
-    Variable,
-    Field,
-    CodeList,
-};

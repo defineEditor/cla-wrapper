@@ -36,4 +36,19 @@ describe('Search', () => {
         let result = await cl.getScope('core');
         expect(result.includes('Permissible')).toBe(true);
     });
+    it('Resolve a hit in ADaM', async () => {
+        let result = await cl.search({ query: 'PARAM', scopes: { product: 'ADaMIG v1.1', type: 'Analysis Variable' } });
+        let variable = await result.hits[0].resolve(cl);
+        expect(variable.label).toBe('Parameter');
+    });
+    it('Resolve a hit in SDTM', async () => {
+        let result = await cl.search({ query: 'LBTESTCD', scopes: { product: 'SDTMIG v3.2', type: 'SDTM Dataset Variable' } });
+        let variable = await result.hits[0].resolve(cl);
+        expect(variable.label).toBe('Lab Test or Examination Short Name');
+    });
+    it('Resolve a hit in CDASH', async () => {
+        let result = await cl.search({ query: 'RACE', scopes: { product: 'CDASHIG v1.1', type: 'Data Collection Field' } });
+        let field = await result.hits[0].resolve(cl);
+        expect(field.prompt).toBe('Race');
+    });
 });

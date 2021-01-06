@@ -5,6 +5,5 @@ dist
 data
 .vscode
 coverage
-test
 test/__snapshots__
 *.log

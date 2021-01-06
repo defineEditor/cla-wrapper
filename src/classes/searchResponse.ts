@@ -1,3 +1,5 @@
+import { CdiscLibrary, Variable, Field, DataStructure, Domain, Dataset } from "./claWrapper";
+
 export class SearchResponse {
     /**
      * CDISC Library search response.
@@ -44,10 +46,8 @@ export class SearchResponseHit {
     /** Type of the hit. All item types (e.g., variable or field) are set to Item, item groups (e.g., dataset, domain) */
     /** are set to ItemGroup. Code List -> CodeList, Code List Value -> Coded Value. The rest types are saved as is. */
     type: string;
-    /** ID of a product containing the hit */
-    productId: string;
-    /** In case type = Item, stores the parent item group ID */
-    parentItemGroupId: string;
+    /** Additional IDs of a search hit */
+    ids: { [name: string]: string };
 
     /*
      * @param {Object} rawHit
@@ -66,15 +66,45 @@ export class SearchResponseHit {
         } else {
             this.type = rawType;
         }
+        this.ids = {};
         if (Array.isArray(rawHit.links)) {
             // Search for parent product;
-            rawHit.links.some(link => {
-                if (link.linkName === 'parentProduct') {
-                    if (/\/mdr\/[^/]+\/^[/]+\/.*/.test(link.href)) {
-                        this.productId = link.href.replace(/\/mdr\/[^/]+\/(^[/]+)\/.*/, '$1');
+            rawHit.links.forEach(link => {
+                if (link.linkName === 'parentProduct' && /\/mdr\/[^/]+\/.+/.test(link.href)) {
+                    if (link.href.startsWith('/mdr/ct/') || link.href.startsWith('/mdr/adam/')) {
+                        this.ids.productId = link.href.replace(/.*\/(.*)$/, '$1');
+                    } else {
+                        this.ids.productId = link.href.replace(/.*\/(.*)\/(.*)$/, '$1-$2');
                     }
+                } else if (link.linkName.toLowerCase() === 'parentdatastructure' && /\/mdr\/.*\/datastructures\/.+/.test(link.href)) {
+                    this.ids.dataStructureId = link.href.replace(/.*\/(.*)$/, '$1');
+                } else if (
+                    (link.linkName === 'parentVariableSet' && /\/mdr\/.*\/varset\/.+/.test(link.href)) ||
+                    (link.linkName === 'parentDomain' && /\/mdr\/.*\/domains\/.+/.test(link.href)) ||
+                    (link.linkName === 'parentDataset' && /\/mdr\/.*\/datasets\/.+/.test(link.href))
+                ) {
+                    this.ids.itemGroupId = link.href.replace(/.*\/(.*)$/, '$1');
+                } else if (link.linkName === 'parentClass' && /\/mdr\/.*\/classes\/.+/.test(link.href)) {
+                    this.ids.dataClassId = link.href.replace(/.*\/(.*)$/, '$1');
+                } else if (link.linkName === 'parentCodelist' && /\/mdr\/.*\/codelists\/.+/.test(link.href)) {
+                    this.ids.codeListId = link.href.replace(/.*\/(.*)$/, '$1');
                 }
             });
+        }
+    }
+
+    /**
+     * Resolve a search hit
+     *
+     * @param cl CDISC Library
+     */
+    async resolve (cl: CdiscLibrary): Promise<Variable|Field|Domain|DataStructure|Dataset> {
+        if (this.type === 'Item') {
+            const itemGroup = await cl.getItemGroup(this.ids.itemGroupId ?? this.ids.dataStructureId, this.ids.productId) as Domain | DataStructure | Dataset;
+            return await itemGroup.getItem(this.rawHit.name);
+        }
+        if (this.type === 'ItemGroup') {
+            return await cl.getItemGroup(this.rawHit.name, this.ids.productId) as Domain | DataStructure | Dataset;
         }
     }
 }
