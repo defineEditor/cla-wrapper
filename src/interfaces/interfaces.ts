@@ -96,3 +96,15 @@ export interface Term {
     preferredTerm: string;
     synonyms: string[];
 }
+
+/**
+ * Parameters for search.
+ */
+export interface SearchParameters {
+    query: string;
+    scopes: object;
+    loadAll: boolean;
+    start?: number;
+    pageSize?: number;
+    highlights?: string[];
+}

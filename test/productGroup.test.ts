@@ -1,6 +1,6 @@
 const { CdiscLibrary } = require('../dist/classes/claWrapper');
 
-const cl = new CdiscLibrary({ baseUrl: 'http://localhost:4600/api' });
+const cl = new CdiscLibrary({ baseUrl: cdiscLibraryUrl});
 let pg;
 
 beforeAll(async () => {
