@@ -1,8 +1,9 @@
 src/test.js
 src/*.dev.js
 node_modules
+dist
 data
 .vscode
 coverage
-dist
-test
+test/__snapshots__
+*.log
