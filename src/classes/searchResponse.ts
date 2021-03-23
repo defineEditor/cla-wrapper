@@ -1,4 +1,4 @@
-import { CdiscLibrary, Variable, Field, DataStructure, Domain, Dataset } from "./claWrapper";
+import { CdiscLibrary, Variable, Field, DataStructure, Domain, Dataset } from './claWrapper';
 
 export class SearchResponse {
     /**
