@@ -497,8 +497,8 @@ export class CdiscLibrary {
             // Keep only odm.xml
             const aTags = rawHtml.matchAll(/<a\s*href=".*?">.*?Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/g);
             for (const tag of aTags) {
-                const name: string = tag[0].replace(/<a\s*href=".*?">(.*?)\s*Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/,'$1');
-                const version: string = tag[0].replace(/<a\s*href=".*?">.*?Terminology\s*(\d{4}-\d{2}-\d{2}).odm.xml\s*<\/a>/,'$1');
+                const name: string = tag[0].replace(/<a\s*href=".*?">(.*?)\s*Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/, '$1');
+                const version: string = tag[0].replace(/<a\s*href=".*?">.*?Terminology\s*(\d{4}-\d{2}-\d{2}).odm.xml\s*<\/a>/, '$1');
                 let idName: string;
                 if (name === 'CDISC Glossary') {
                     idName = 'glossary';
