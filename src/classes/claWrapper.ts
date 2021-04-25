@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import qs from 'qs';
+import xmlParser from 'fast-xml-parser';
 import { SearchResponse } from '../classes/searchResponse';
 import apiRequest from '../utils/apiRequest';
 import convertToFormat from '../utils/convertToFormat';
@@ -29,6 +30,7 @@ export type ItemType = Variable | Field;
 interface Items {
     [name: string]: ItemType;
 }
+type ContentEncoding = 'gzip' | 'compress' | 'deflate' | 'br';
 
 /**
  * CoreObject constructor parameters.
@@ -38,6 +40,9 @@ interface CoreObjectParameters {
     baseUrl?: string;
     cache?: ClCache;
     traffic?: Traffic;
+    useNciSiteForCt?: boolean;
+    nciSiteUrl?: string;
+    contentEncoding?: ContentEncoding;
 }
 
 export class CoreObject {
@@ -52,20 +57,25 @@ export class CoreObject {
     cache?: ClCache;
     /** @Traffic */
     traffic?: Traffic;
+    /**  If true, CT is downloaded from NCI site. */
+    useNciSiteForCt?: boolean;
+    /**  NCI site URL */
+    nciSiteUrl?: string;
+    /** Add Content-Encoding to request headers. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding */
+    contentEncoding?: ContentEncoding;
 
     constructor ({
         apiKey,
-        baseUrl,
+        baseUrl = 'https://library.cdisc.org/api',
         cache,
-        traffic
+        traffic,
+        useNciSiteForCt = false,
+        nciSiteUrl = 'https://evs.nci.nih.gov/ftp1/CDISC',
+        contentEncoding,
     }: CoreObjectParameters) {
         this.apiKey = apiKey;
         this.cache = cache;
-        if (baseUrl !== undefined) {
-            this.baseUrl = baseUrl;
-        } else {
-            this.baseUrl = 'https://library.cdisc.org/api';
-        }
+        this.baseUrl = baseUrl;
         if (traffic !== undefined) {
             this.traffic = traffic;
         } else {
@@ -74,6 +84,9 @@ export class CoreObject {
                 outgoing: 0
             };
         }
+        this.useNciSiteForCt = useNciSiteForCt;
+        this.nciSiteUrl = nciSiteUrl;
+        this.contentEncoding = contentEncoding;
     }
 
     /**
@@ -89,9 +102,13 @@ export class CoreObject {
         try {
             const response: any = await apiRequest({
                 apiKey: this.apiKey,
-                url: this.baseUrl + endpoint,
+                baseUrl: this.baseUrl,
+                endpoint: endpoint,
                 headers,
                 cache: noCache ? undefined : this.cache,
+                useNciSiteForCt: this.useNciSiteForCt,
+                nciSiteUrl: this.nciSiteUrl,
+                contentEncoding: this.contentEncoding,
             });
             // Count traffic
             if (response.connection !== undefined) {
@@ -102,7 +119,11 @@ export class CoreObject {
                 return response;
             }
             if (response.statusCode === 200) {
-                return JSON.parse(response.body);
+                if (response.headers['content-type'].includes('application/json')) {
+                    return JSON.parse(response.body);
+                } else {
+                    return response.body;
+                }
             } else if (response.statusCode > 0) {
                 throw new Error('Request failed with code: ' + response.statusCode);
             } else {
@@ -194,8 +215,8 @@ export class CdiscLibrary {
     /** An object with product classes. */
     productClasses: ProductClasses;
 
-    constructor ({ apiKey, baseUrl, cache, traffic, productClasses }: CdiscLibraryParameters = {}) {
-        this.coreObject = new CoreObject({ apiKey, baseUrl, cache, traffic });
+    constructor ({ apiKey, baseUrl, cache, traffic, productClasses, useNciSiteForCt, nciSiteUrl }: CdiscLibraryParameters = {}) {
+        this.coreObject = new CoreObject({ apiKey, baseUrl, cache, traffic, useNciSiteForCt, nciSiteUrl });
         this.productClasses = productClasses;
     }
 
@@ -328,6 +349,7 @@ export class CdiscLibrary {
                 result = tempRes;
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -453,6 +475,71 @@ export class CdiscLibrary {
     }
 
     /**
+     * Get Terminology information from NCI site
+     *
+     * @param folderList NCI of paths on the NCI site to scan. The paths are relative to ftp1/CDISC/.
+     * @returns Object with of packages
+     */
+    async getCTFromNCISite (pathList = [
+        '/SDTM/Archive/',
+        '/ADaM/Archive/',
+        '/Define-XML/Archive/',
+        '/SEND/Archive/',
+        '/Protocol/Archive/',
+        '/Glossary/Archive/'
+    ]): Promise<{[name: string]: Product}> {
+        if (!this.coreObject.useNciSiteForCt) {
+            throw Error('getCTFromNCISite function requires useNciSiteForCt set to true.');
+        }
+        const result: { [name: string]: Product } = {};
+        await Promise.all(pathList.map(async (path) => {
+            const rawHtml = await this.coreObject.apiRequest('/nciSite/' + path);
+            // Keep only odm.xml
+            const aTags = rawHtml.matchAll(/<a\s*href=".*?">.*?Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/g);
+            for (const tag of aTags) {
+                const name: string = tag[0].replace(/<a\s*href=".*?">(.*?)\s*Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/,'$1');
+                const version: string = tag[0].replace(/<a\s*href=".*?">.*?Terminology\s*(\d{4}-\d{2}-\d{2}).odm.xml\s*<\/a>/,'$1');
+                let idName: string;
+                if (name === 'CDISC Glossary') {
+                    idName = 'glossary';
+                } else {
+                    idName = name.toLowerCase();
+                }
+                const id = `${idName}ct-${version}`;
+                const label = `${name} Controlled Terminology Effective ${version}`;
+                const model = path.replace(/^\/(.*?)\/.*/, '$1');
+                const ct = new Product({
+                    id,
+                    href: `/mdr/ct/packages/${id}`,
+                    datasetType: 'codelists',
+                    type: 'Terminology',
+                    label,
+                    model,
+                    version,
+                });
+                result[id] = ct;
+            }
+        }));
+        // Check if structure is already created;
+        if (this.productClasses?.terminology?.productGroups?.packages?.products !== undefined) {
+            this.productClasses.terminology.productGroups.packages.products = result;
+        } else {
+            this.productClasses = {
+                terminology: new ProductClass({
+                    name: 'terminology',
+                    productGroups: {
+                        packages: new ProductGroup({
+                            name: 'packages',
+                            products: result
+                        })
+                    }
+                })
+            };
+        }
+        return result;
+    }
+
+    /**
      * Get traffic used by the current insurance of the CdiscLibrary class
      *
      * @param type Type of the traffic. Possible values: all, incoming, outgoin.
@@ -506,6 +593,7 @@ export class CdiscLibrary {
                 result = { productClassId: pcId, ...res };
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -659,6 +747,7 @@ export class ProductClass extends BasicFunctions {
                 result = this.productGroups[pgId];
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -735,6 +824,7 @@ export class ProductClass extends BasicFunctions {
                 result = { productGroupId: pgId, ...res };
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -843,7 +933,11 @@ export class ProductGroup extends BasicFunctions {
             } else {
                 const productRaw = await this.coreObject.apiRequest(this.products[id].href);
                 product = new Product({ ...this.products[id] });
-                product.parseResponse(productRaw);
+                if (product.datasetType === 'codelists') {
+                    product.parseResponse(productRaw, this.coreObject.useNciSiteForCt);
+                } else {
+                    product.parseResponse(productRaw);
+                }
                 product.fullyLoaded = true;
                 this.products[id] = product;
             }
@@ -1025,11 +1119,15 @@ export class Product extends BasicFunctions {
             }
         }
 
-        if (this.model === 'ADaM' && !this.dataStructures) {
-            this.dataStructures = {};
-        }
-        if (['SDTM', 'SEND', 'CDASH'].includes(this.model) && !this.dataClasses) {
-            this.dataClasses = {};
+        if (this.datasetType === 'codelists') {
+            this.codelists = {};
+        } else {
+            if (this.model === 'ADaM' && !this.dataStructures) {
+                this.dataStructures = {};
+            }
+            if (['SDTM', 'SEND', 'CDASH'].includes(this.model) && !this.dataClasses) {
+                this.dataClasses = {};
+            }
         }
         this.fullyLoaded = fullyLoaded;
         this.dependencies = dependencies;
@@ -1039,89 +1137,122 @@ export class Product extends BasicFunctions {
      * Parse API response to product
      *
      * @param {Object} pRaw Raw CDISC API response
+     * @param {boolean} nciSiteResponse Indicates whether the reponse is from the NCI site
      */
-    parseResponse (pRaw: any): void {
-        this.name = pRaw.name;
-        this.description = pRaw.description;
-        this.source = pRaw.source;
-        this.effectiveDate = pRaw.effectiveDate;
-        this.registrationStatus = pRaw.registrationStatus;
-        this.version = pRaw.version;
-        if (pRaw.hasOwnProperty('dataStructures')) {
-            const dataStructures: { [name: string]: DataStructure } = {};
-            pRaw.dataStructures.forEach((dataStructureRaw: any) => {
-                let href;
-                if (dataStructureRaw?._links?.self) {
-                    href = dataStructureRaw._links.self.href;
-                }
-                const dataStructure = new DataStructure({
-                    name: dataStructureRaw.name,
-                    href,
-                    coreObject: this.coreObject
+    parseResponse(pRaw: any, nciSiteResponse = false): void {
+        if (!nciSiteResponse) {
+            this.name = pRaw.name;
+            this.description = pRaw.description;
+            this.source = pRaw.source;
+            this.effectiveDate = pRaw.effectiveDate;
+            this.registrationStatus = pRaw.registrationStatus;
+            this.version = pRaw.version;
+            if (pRaw.hasOwnProperty('dataStructures')) {
+                const dataStructures: { [name: string]: DataStructure } = {};
+                pRaw.dataStructures.forEach((dataStructureRaw: any) => {
+                    let href;
+                    if (dataStructureRaw?._links?.self) {
+                        href = dataStructureRaw._links.self.href;
+                    }
+                    const dataStructure = new DataStructure({
+                        name: dataStructureRaw.name,
+                        href,
+                        coreObject: this.coreObject
+                    });
+                    dataStructure.parseResponse(dataStructureRaw);
+                    dataStructures[dataStructure.id] = dataStructure;
                 });
-                dataStructure.parseResponse(dataStructureRaw);
-                dataStructures[dataStructure.id] = dataStructure;
-            });
-            this.dataStructures = dataStructures;
-        }
-        if (pRaw.hasOwnProperty('classes')) {
-            const dataClasses: { [name: string]: DataClass } = {};
-            pRaw.classes.forEach((dataClassRaw: any) => {
-                let href;
-                if (dataClassRaw?._links?.self) {
-                    href = dataClassRaw._links.self.href;
-                }
-                const dataClass = new DataClass({
-                    name: dataClassRaw.name,
-                    href,
-                    coreObject: this.coreObject
+                this.dataStructures = dataStructures;
+            }
+            if (pRaw.hasOwnProperty('classes')) {
+                const dataClasses: { [name: string]: DataClass } = {};
+                pRaw.classes.forEach((dataClassRaw: any) => {
+                    let href;
+                    if (dataClassRaw?._links?.self) {
+                        href = dataClassRaw._links.self.href;
+                    }
+                    const dataClass = new DataClass({
+                        name: dataClassRaw.name,
+                        href,
+                        coreObject: this.coreObject
+                    });
+                    // CDASH structure is different from SDTM, as domains are provided separately
+                    // Pass all domains, so that they can be split by class
+                    if (pRaw.hasOwnProperty('domains')) {
+                        dataClass.parseResponse(dataClassRaw, pRaw.domains);
+                    } else {
+                        dataClass.parseResponse(dataClassRaw);
+                    }
+                    dataClasses[dataClass.id] = dataClass;
                 });
-                // CDASH structure is different from SDTM, as domains are provided separately
-                // Pass all domains, so that they can be split by class
-                if (pRaw.hasOwnProperty('domains')) {
-                    dataClass.parseResponse(dataClassRaw, pRaw.domains);
-                } else {
-                    dataClass.parseResponse(dataClassRaw);
-                }
-                dataClasses[dataClass.id] = dataClass;
-            });
-            this.dataClasses = dataClasses;
-        }
-        if (pRaw.hasOwnProperty('codelists')) {
+                this.dataClasses = dataClasses;
+            }
+            if (pRaw.hasOwnProperty('codelists')) {
+                const codelists: { [name: string]: CodeList } = {};
+                pRaw.codelists.forEach((codeListRaw: any) => {
+                    let href;
+                    if (codeListRaw?._links?.self) {
+                        href = codeListRaw._links.self.href;
+                    }
+                    const codeList = new CodeList({
+                        name: codeListRaw.name,
+                        href,
+                        coreObject: this.coreObject
+                    });
+                    codeList.parseResponse(codeListRaw);
+                    if (codeList.href === undefined && this.href !== undefined) {
+                        // Build href using the CT href
+                        codeList.href = this.href + '/codelists/' + codeList.conceptId;
+                    }
+                    codelists[codeList.conceptId] = codeList;
+                });
+                this.codelists = codelists;
+            }
+            if (pRaw._links) {
+                const dependencies: { [name: string]: ProductDependency } = {};
+                Object.keys(pRaw._links).forEach(link => {
+                    if (link !== 'self') {
+                        dependencies[link] = { ...pRaw._links[link] };
+                        const href = pRaw._links[link].href;
+                        if (href.startsWith('/mdr/ct/') || href.startsWith('/mdr/adam/')) {
+                            dependencies[link].id = href.replace(/.*\/(.*)$/, '$1');
+                        } else {
+                            dependencies[link].id = href.replace(/.*\/(.*)\/(.*)$/, '$1-$2');
+                        }
+                    }
+                });
+                this.dependencies = dependencies;
+            }
+        } else {
+            // Parse response as NCI codelist
+            const options = {
+                attributeNamePrefix: '_',
+                ignoreAttributes: false,
+                ignoreNameSpace: true,
+                parseNodeValue: true,
+                parseAttributeValue: true,
+                trimValues: true,
+            };
+            const rawXml = xmlParser.parse(pRaw, options);
+            this.href = '/mdr/packages/ct/' + this.id;
+            this.description = rawXml.ODM.Study.GlobalVariables.StudyDescription;
+            this.source = rawXml.ODM._Originator;
+            this.effectiveDate = rawXml.ODM._SourceSystemVersion;
+            this.registrationStatus = 'Final';
+            this.version = rawXml.ODM._SourceSystemVersion;
+            this.name = `${this.model} CT ${this.version}`;
             const codelists: { [name: string]: CodeList } = {};
-            pRaw.codelists.forEach((codeListRaw: any) => {
-                let href;
-                if (codeListRaw?._links?.self) {
-                    href = codeListRaw._links.self.href;
-                }
+            rawXml.ODM.Study.MetaDataVersion.CodeList.forEach((codeListRaw: any) => {
                 const codeList = new CodeList({
-                    name: codeListRaw.name,
-                    href,
+                    name: codeListRaw._Name,
                     coreObject: this.coreObject
                 });
-                codeList.parseResponse(codeListRaw);
-                if (codeList.href === undefined && this.href !== undefined) {
-                    // Build href using the CT href
-                    codeList.href = this.href + '/codelists/' + codeList.conceptId;
-                }
+                codeList.parseResponse(codeListRaw, nciSiteResponse);
+                // Build href using the CT href
+                codeList.href = this.href + '/codelists/' + codeList.conceptId;
                 codelists[codeList.conceptId] = codeList;
             });
             this.codelists = codelists;
-        }
-        if (pRaw._links) {
-            const dependencies: { [name: string]: ProductDependency} = {};
-            Object.keys(pRaw._links).forEach(link => {
-                if (link !== 'self') {
-                    dependencies[link] = { ...pRaw._links[link] };
-                    const href = pRaw._links[link].href;
-                    if (href.startsWith('/mdr/ct/') || href.startsWith('/mdr/adam/')) {
-                        dependencies[link].id = href.replace(/.*\/(.*)$/, '$1');
-                    } else {
-                        dependencies[link].id = href.replace(/.*\/(.*)\/(.*)$/, '$1-$2');
-                    }
-                }
-            });
-            this.dependencies = dependencies;
         }
     }
 
@@ -1130,7 +1261,7 @@ export class Product extends BasicFunctions {
      *
      * @returns {Object} An object with variables/fields
      */
-    async getItems (): Promise<Items> {
+    async getItems(): Promise<Items> {
         if (this.fullyLoaded) {
             return this.getCurrentItems();
         } else {
@@ -1147,7 +1278,7 @@ export class Product extends BasicFunctions {
      *
      * @returns {Object} An object with variables/fields
      */
-    getCurrentItems (): Items {
+    getCurrentItems(): Items {
         let sourceObject;
         let result: Items = {};
         if (this.dataStructures) {
@@ -1172,7 +1303,7 @@ export class Product extends BasicFunctions {
      * <br> In case options.short is set to true, only name and label for each itemGroup are returned.
      * This approach does not load the full product and loads only the dataset information from the CDISC Library.
      */
-    async getItemGroups (options?: GetItemGroupsOptions): Promise<any> {
+    async getItemGroups(options?: GetItemGroupsOptions): Promise<any> {
         const defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
         let result: any = {};
         if (defaultedOptions.type !== 'short') {
@@ -1221,7 +1352,7 @@ export class Product extends BasicFunctions {
      *
      * @returns {Object} An object with datasets/dataStructures/domains
      */
-    getCurrentItemGroups (): ItemGroups {
+    getCurrentItemGroups(): ItemGroups {
         let result = {};
         if (this.dataStructures) {
             return this.dataStructures;
@@ -1240,7 +1371,7 @@ export class Product extends BasicFunctions {
      * @param {GetItemGroupOptions} options {@link GetItemGroupOptions}
      * @returns {Object} Dataset/DataStruture/Domain
      */
-    async getItemGroup (name: string, options?: GetItemGroupOptions): Promise<ItemGroupType|string> {
+    async getItemGroup(name: string, options?: GetItemGroupOptions): Promise<ItemGroupType | string> {
         let result;
         const defaultedOptions = { ...defaultGetItemGroupsOptions, ...options };
         // Check if dataset is already present;
@@ -1251,6 +1382,7 @@ export class Product extends BasicFunctions {
                 datasetId = dataset.id;
                 return true;
             }
+            return false;
         });
         if (datasetId) {
             result = loadedDatasets[datasetId];
@@ -1307,7 +1439,7 @@ export class Product extends BasicFunctions {
         if (defaultedOptions.format === undefined) {
             return result;
         } else {
-            return result.getFormattedItems(defaultedOptions.format) as ItemGroupType|string;
+            return result.getFormattedItems(defaultedOptions.format) as ItemGroupType | string;
         }
     }
 
@@ -1318,7 +1450,7 @@ export class Product extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options?: MatchingOptions): ItemType[] {
+    findMatchingItems(name: string, options?: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
         let result: ItemType[] = [];
@@ -1337,6 +1469,7 @@ export class Product extends BasicFunctions {
                         return true;
                     }
                 }
+                return false;
             });
         }
         return result;
@@ -1350,7 +1483,7 @@ export class Product extends BasicFunctions {
      * @param {String} [options.format=json] Specifies the output format. Possible values: json, csv.
      * @returns {Array} Array of codelist IDs and titles.
      */
-    async getCodeListList (options: GetItemGroupsOptions = { type: 'long' }): Promise<Array<{ conceptId: string; preferredTerm: string; href?: string }>> {
+    async getCodeListList(options: GetItemGroupsOptions = { type: 'long' }): Promise<Array<{ conceptId: string; preferredTerm: string; href?: string }>> {
         const result: Array<{ conceptId: string; preferredTerm: string; href?: string }> = [];
         if (!this.codelists) {
             const codeListsHref = `${this.href}/codelists`;
@@ -1386,7 +1519,7 @@ export class Product extends BasicFunctions {
      * @param {String} [options.format=json] Specifies the output format. Possible values: json, csv.
      * @returns {Object} Codelist.
      */
-    async getCodeList (codeListId: string, options: GetItemGroupOptions = {}): Promise<CodeList|Term[]|string> {
+    async getCodeList(codeListId: string, options: GetItemGroupOptions = {}): Promise<CodeList | Term[] | string> {
         let ct;
         if (this?.codelists[codeListId]) {
             ct = this.codelists[codeListId];
@@ -1415,6 +1548,23 @@ export class Product extends BasicFunctions {
                 return ct;
             }
         }
+    }
+
+    /**
+     * Remove contents of the product.
+     */
+    removeContent(): void {
+        if (this.datasetType === 'codelists') {
+            this.codelists = {};
+        } else {
+            if (this.dataClasses !== undefined && Object.keys(this.dataClasses).length > 0) {
+                this.dataClasses = {};
+            }
+            if (this.dataStructures !== undefined && Object.keys(this.dataStructures).length > 0) {
+                this.dataStructures = {};
+            }
+        }
+        this.fullyLoaded = false;
     }
 }
 
@@ -1449,7 +1599,7 @@ export class DataStructure extends BasicFunctions {
     /** CDISC Library attribute. */
     analysisVariableSets?: AnalysisVariableSets;
 
-    constructor ({ name, label, description, className, analysisVariableSets, href, coreObject }: DataStructureParameters = {}) {
+    constructor({ name, label, description, className, analysisVariableSets, href, coreObject }: DataStructureParameters = {}) {
         super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
         this.name = name;
@@ -1466,7 +1616,7 @@ export class DataStructure extends BasicFunctions {
      *
      * @param dsRaw {Object} Raw CDISC API response
      */
-    parseResponse (dsRaw: any): void {
+    parseResponse(dsRaw: any): void {
         this.name = dsRaw.name;
         this.label = dsRaw.label || dsRaw.title;
         this.description = dsRaw.description;
@@ -1500,7 +1650,7 @@ export class DataStructure extends BasicFunctions {
      *
      * @returns {Object} An object with variables/fields
      */
-    getItems (): Items {
+    getItems(): Items {
         let result = {};
         if (this.analysisVariableSets) {
             Object.values(this.analysisVariableSets).forEach(analysisVariableSet => {
@@ -1517,7 +1667,7 @@ export class DataStructure extends BasicFunctions {
      *
      * @returns {Object|undefined} An object with variable/field if found
      */
-    async getItem (name: string): Promise<ItemType> {
+    async getItem(name: string): Promise<ItemType> {
         let result;
 
         Object.values(this.getItems()).some(item => {
@@ -1525,6 +1675,7 @@ export class DataStructure extends BasicFunctions {
                 result = item;
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -1536,7 +1687,7 @@ export class DataStructure extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
+    findMatchingItems(name: string, options: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
         let result: ItemType[] = [];
@@ -1549,6 +1700,7 @@ export class DataStructure extends BasicFunctions {
                         return true;
                     }
                 }
+                return false;
             });
         }
         return result;
@@ -1561,7 +1713,7 @@ export class DataStructure extends BasicFunctions {
      * @param {Boolean} [addItemGroupId=false] If set to true, itemGroup name is added to each records.
      * @returns {String|Array} String with formatted items or an array with item details.
      */
-    getFormattedItems (format: 'json' | 'csv', addItemGroupId = false): string|ItemType[] {
+    getFormattedItems(format: 'json' | 'csv', addItemGroupId = false): string | ItemType[] {
         let result: object[] = [];
         if (this.analysisVariableSets) {
             Object.values(this.analysisVariableSets).forEach((analysisVariableSet: AnalysisVariableSet) => {
@@ -1578,10 +1730,10 @@ export class DataStructure extends BasicFunctions {
      * @param {Boolean} [options.descriptions=false] Will return an object with variable set IDs and their labels.
      * @returns {Object|Array} List of variable sets.
      */
-    getVariableSetList (options: { descriptions?: boolean } = {}): string[]|object {
+    getVariableSetList(options: { descriptions?: boolean } = {}): string[] | object {
         const analysisVariableSets = this.analysisVariableSets || {};
         if (options?.descriptions) {
-            const result: { [name: string]: string} = {};
+            const result: { [name: string]: string } = {};
             Object.keys(analysisVariableSets).forEach(id => {
                 result[id] = analysisVariableSets[id].label;
             });
@@ -1632,7 +1784,7 @@ export class DataClass extends BasicFunctions {
     /** CDISC Library attribute. */
     cdashModelFields?: Items;
 
-    constructor ({ ordinal, name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject }: DataClassParameters = {}) {
+    constructor({ ordinal, name, label, description, datasets, domains, classVariables, cdashModelFields, href, coreObject }: DataClassParameters = {}) {
         super();
         this.id = href.replace(/.*\/(.*)$/, '$1');
         this.ordinal = ordinal;
@@ -1654,7 +1806,7 @@ export class DataClass extends BasicFunctions {
      * @param {Object} id Placeholder, has no effect.
      * @param {Object} domainsRaw Raw CDISC API response with domains, used for CDASH endpoints
      */
-    parseResponse (dcRaw: any, domainsRaw?: any): void {
+    parseResponse(dcRaw: any, domainsRaw?: any): void {
         this.name = dcRaw.name;
         this.ordinal = dcRaw.ordinal;
         this.label = dcRaw.label;
@@ -1691,6 +1843,8 @@ export class DataClass extends BasicFunctions {
                 .filter((domainRaw: any) => {
                     if (domainRaw?._links?.parentClass) {
                         return domainRaw._links.parentClass.href === this.href;
+                    } else {
+                        return false;
                     }
                 })
                 .forEach((domainRaw: any) => {
@@ -1760,7 +1914,7 @@ export class DataClass extends BasicFunctions {
      * @param {Boolean} [options.immediate=false] Include only class variables/model fields and exclude items from datasets or domains.
      * @returns {Object} An object with variables/fields
      */
-    getItems (options = { immediate: false }): Items {
+    getItems(options = { immediate: false }): Items {
         let result: Items = {};
         if (this.datasets && !options.immediate) {
             Object.values(this.datasets).forEach(dataset => {
@@ -1792,13 +1946,14 @@ export class DataClass extends BasicFunctions {
      *
      * @returns {Object|undefined} An object with variable/field if found
      */
-    async getItem (name: string): Promise<ItemType|undefined> {
+    async getItem(name: string): Promise<ItemType | undefined> {
         let result;
         Object.values(this.getItems()).some(item => {
             if (item.name === name) {
                 result = item;
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -1808,7 +1963,7 @@ export class DataClass extends BasicFunctions {
      *
      * @returns {Object} An object with datasets/domains
      */
-    getItemGroups (): ItemGroups {
+    getItemGroups(): ItemGroups {
         let result = {};
         if (typeof this.domains === 'object' && Object.keys(this.domains).length > 0) {
             result = { ...result, ...this.domains };
@@ -1827,7 +1982,7 @@ export class DataClass extends BasicFunctions {
      * @param {Boolean} [options.firstOnly=false] If true, returns only the first matching item, when false - returns all matching items.
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
+    findMatchingItems(name: string, options: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
         let result: ItemType[] = [];
@@ -1841,6 +1996,7 @@ export class DataClass extends BasicFunctions {
                             return true;
                         }
                     }
+                    return false;
                 });
             }
         });
@@ -1894,17 +2050,17 @@ abstract class ItemGroup extends BasicFunctions {
     /** CLA Wrapper attribute. Item group class ID. */
     id?: string;
     /** CDISC Library attribute. */
-    scenarios?: {[name: string]: Scenario };
+    scenarios?: { [name: string]: Scenario };
     /** CDISC Library attribute. */
-    fields?: {[name: string]: Field };
+    fields?: { [name: string]: Field };
     /** CDISC Library attribute. */
-    analysisVariables?: {[name: string]: Variable };
+    analysisVariables?: { [name: string]: Variable };
     /** CDISC Library attribute. */
-    datasetVariables?: {[name: string]: Variable };
+    datasetVariables?: { [name: string]: Variable };
     /** CLA Wrapper attribute. Name of the item type (field, analysisVariable, datasetVariable). Corresponds to an object name of the classes which are extending ItemGroup class (Dataset, Domain, VariableSet). */
     itemType?: 'fields' | 'analysisVariables' | 'datasetVariables';
 
-    constructor ({ id, name, label, itemType, type, href, coreObject }: ItemGroupParameters = {}) {
+    constructor({ id, name, label, itemType, type, href, coreObject }: ItemGroupParameters = {}) {
         super();
         this.itemType = itemType;
         if (name) {
@@ -1928,7 +2084,7 @@ abstract class ItemGroup extends BasicFunctions {
      *
      * @param {Object} itemRaw CDISC API response.
      */
-    parseItemGroupResponse (itemRaw: any): void {
+    parseItemGroupResponse(itemRaw: any): void {
         this.name = itemRaw.name;
         this.label = itemRaw.label;
         const items: Items = {};
@@ -1972,7 +2128,7 @@ abstract class ItemGroup extends BasicFunctions {
      *
      * @returns {Object} An object with variables/fields.
      */
-    getItems (): Items {
+    getItems(): Items {
         let result: Items = {};
         if (this[this.itemType]) {
             Object.values(this[this.itemType]).forEach((item: ItemType) => {
@@ -1994,7 +2150,7 @@ abstract class ItemGroup extends BasicFunctions {
      *
      * @returns {Object|undefined} An object with variable/field if found
      */
-    getItem (name: string): ItemType {
+    getItem(name: string): ItemType {
         let result;
 
         Object.values(this.getItems()).some(item => {
@@ -2002,6 +2158,7 @@ abstract class ItemGroup extends BasicFunctions {
                 result = item;
                 return true;
             }
+            return false;
         });
         return result;
     }
@@ -2011,7 +2168,7 @@ abstract class ItemGroup extends BasicFunctions {
      *
      * @returns {Array} An array with item names.
      */
-    getNameList (): string[] {
+    getNameList(): string[] {
         let result: string[] = [];
         if (this[this.itemType]) {
             Object.values(this[this.itemType]).forEach(item => {
@@ -2037,7 +2194,7 @@ abstract class ItemGroup extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
+    findMatchingItems(name: string, options: MatchingOptions): ItemType[] {
         // Default options
         const defaultedOptions = { ...defaultMatchingOptions, ...options };
         let result: ItemType[] = [];
@@ -2049,6 +2206,7 @@ abstract class ItemGroup extends BasicFunctions {
                         return true;
                     }
                 }
+                return false;
             });
         }
         if (this.scenarios) {
@@ -2067,7 +2225,7 @@ abstract class ItemGroup extends BasicFunctions {
      * @param {Object} [additionalProps] If provided, these properties will be added.
      * @returns {String|Array} String with formatted items or an array with item details.
      */
-    getFormattedItems (format: 'json' | 'csv', addItemGroupId = false, additionalProps?: object): string|object[] {
+    getFormattedItems(format: 'json' | 'csv', addItemGroupId = false, additionalProps?: object): string | object[] {
         const items = this.getItems();
         const result: object[] = [];
         Object.values(items).forEach((item: ItemType) => {
@@ -2118,7 +2276,7 @@ export class Dataset extends ItemGroup {
     description?: object;
     /** CDISC Library attribute. */
     dataStructure?: object;
-    constructor ({ id, name, label, description, dataStructure, datasetVariables = {}, href, coreObject }: DatasetParameters = {}) {
+    constructor({ id, name, label, description, dataStructure, datasetVariables = {}, href, coreObject }: DatasetParameters = {}) {
         super({ id, name, label, itemType: 'datasetVariables', href, coreObject });
         this.description = description;
         this.dataStructure = dataStructure;
@@ -2130,7 +2288,7 @@ export class Dataset extends ItemGroup {
      *
      * @param raw Raw CDISC API response
      */
-    parseResponse (raw: any): void {
+    parseResponse(raw: any): void {
         this.parseItemGroupResponse(raw);
         this.description = raw.description;
         this.dataStructure = raw.dataStructure;
@@ -2153,7 +2311,7 @@ interface AnalysisVariableSetParameters {
  * Analysis Variable Set class. Extends ItemGroup class.
  */
 export class AnalysisVariableSet extends ItemGroup {
-    constructor ({ id, name, label, analysisVariables = {}, href, coreObject }: AnalysisVariableSetParameters = {}) {
+    constructor({ id, name, label, analysisVariables = {}, href, coreObject }: AnalysisVariableSetParameters = {}) {
         super({ id, name, label, itemType: 'analysisVariables', href, coreObject });
         this.analysisVariables = analysisVariables;
     }
@@ -2163,7 +2321,7 @@ export class AnalysisVariableSet extends ItemGroup {
      *
      * @param raw Raw CDISC API response
      */
-    parseResponse (raw: any): void {
+    parseResponse(raw: any): void {
         this.parseItemGroupResponse(raw);
     }
 }
@@ -2186,7 +2344,7 @@ interface DomainParameters {
  * Domain class.
  */
 export class Domain extends ItemGroup {
-    constructor ({ id, name, label, fields = {}, scenarios, href, coreObject }: DomainParameters = {}) {
+    constructor({ id, name, label, fields = {}, scenarios, href, coreObject }: DomainParameters = {}) {
         super({ id, name, label, itemType: 'fields', href, coreObject });
         this.fields = fields;
         this.scenarios = scenarios;
@@ -2198,7 +2356,7 @@ export class Domain extends ItemGroup {
      * @param raw Raw CDISC API response
      * @param scenariosRaw Object with scenarios
     */
-    parseResponse (raw: any, scenariosRaw?: any): void {
+    parseResponse(raw: any, scenariosRaw?: any): void {
         this.parseItemGroupResponse(raw);
         if (raw._links && Array.isArray(raw._links.scenarios)) {
             const scenarios: { [name: string]: Scenario } = {};
@@ -2213,6 +2371,7 @@ export class Domain extends ItemGroup {
                             scenario.parseResponse(scRaw);
                             return true;
                         }
+                        return false;
                     });
                 }
                 scenarios[scenario.id] = scenario;
@@ -2250,7 +2409,7 @@ export class Scenario extends BasicFunctions {
     /** CLA Wrapper attribute. Item group class ID. */
     id?: string;
 
-    constructor ({ id, domain, scenario, type, fields = {}, href, coreObject }: ScenarioParameters = {}) {
+    constructor({ id, domain, scenario, type, fields = {}, href, coreObject }: ScenarioParameters = {}) {
         super();
         if (id) {
             this.id = id;
@@ -2270,7 +2429,7 @@ export class Scenario extends BasicFunctions {
      *
      * @param raw Raw CDISC API response
      */
-    parseResponse (raw: any): void {
+    parseResponse(raw: any): void {
         this.domain = raw.domain;
         this.scenario = raw.scenario;
         const items: { [name: string]: Field } = {};
@@ -2302,7 +2461,7 @@ export class Scenario extends BasicFunctions {
      *
      * @returns {Object} An object with variables/fields.
      */
-    getItems (): Items {
+    getItems(): Items {
         return ((new Domain(this)).getItems());
     }
 
@@ -2311,7 +2470,7 @@ export class Scenario extends BasicFunctions {
      *
      * @returns {Array} An array with item names.
      */
-    getNameList (): string[] {
+    getNameList(): string[] {
         return ((new Domain(this)).getNameList());
     }
 
@@ -2322,7 +2481,7 @@ export class Scenario extends BasicFunctions {
      * @param {Object} [options]  Matching options. {@link MatchingOptions}
      * @returns {Array} Array of matched items.
      */
-    findMatchingItems (name: string, options: MatchingOptions): ItemType[] {
+    findMatchingItems(name: string, options: MatchingOptions): ItemType[] {
         return ((new Domain(this)).findMatchingItems(name, options));
     }
 }
@@ -2337,7 +2496,7 @@ interface CodeListParameters {
     submissionValue?: string;
     definition?: string;
     preferredTerm?: string;
-    synonyms?: string;
+    synonyms?: string[];
     terms?: Term[];
     href?: string;
     coreObject?: CoreObject;
@@ -2360,11 +2519,11 @@ export class CodeList extends BasicFunctions {
     /** CDISC Library attribute. */
     preferredTerm?: string;
     /** CDISC Library attribute. */
-    synonyms?: string;
+    synonyms?: string[];
     /** CDISC Library attribute. */
     terms?: Term[];
 
-    constructor ({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject }: CodeListParameters = {}) {
+    constructor({ conceptId, extensible, name, submissionValue, definition, preferredTerm, synonyms, terms = [], href, coreObject }: CodeListParameters = {}) {
         super();
         if (conceptId) {
             this.conceptId = conceptId;
@@ -2386,20 +2545,62 @@ export class CodeList extends BasicFunctions {
      * Parse API response to codelist.
      *
      * @param {Object} clRaw Raw CDISC API response.
+     * @param {boolean} nciSiteResponse Indicates whether the reponse is from the NCI site
      */
-    parseResponse (clRaw: any): void {
-        this.conceptId = clRaw.conceptId;
-        this.name = clRaw.name;
-        if (clRaw.extensible === 'true') {
-            this.extensible = true;
-        } else if (clRaw.extensible === 'false') {
-            this.extensible = false;
+    parseResponse(clRaw: any, nciSiteResponse = false): void {
+        if (!nciSiteResponse) {
+            this.conceptId = clRaw.conceptId;
+            this.name = clRaw.name;
+            if (clRaw.extensible === 'true') {
+                this.extensible = true;
+            } else if (clRaw.extensible === 'false') {
+                this.extensible = false;
+            }
+            this.submissionValue = clRaw.submissionValue;
+            this.definition = clRaw.definition;
+            this.preferredTerm = clRaw.preferredTerm;
+            this.synonyms = clRaw.synonyms;
+            this.terms = clRaw.terms;
+        } else {
+            this.conceptId = clRaw._ExtCodeID;
+            this.name = clRaw._Name;
+            if (clRaw._CodeListExtensible === 'Yes') {
+                this.extensible = true;
+            } else {
+                this.extensible = false;
+            }
+            this.submissionValue = clRaw.CDISCSubmissionValue;
+            this.definition = clRaw?.Description?.TranslatedText['#text'];
+            this.preferredTerm = clRaw.PreferredTerm;
+            if (clRaw.CDISCSynonym !== undefined) {
+                if (Array.isArray(clRaw.CDISCSynonym)) {
+                    this.synonyms = clRaw.CDISCSynonym;
+                } else {
+                    this.synonyms = [clRaw.CDISCSynonym];
+                }
+            }
+            let EnumeratedItem = clRaw.EnumeratedItem;
+            if (!Array.isArray(EnumeratedItem)) {
+                EnumeratedItem = [EnumeratedItem];
+            }
+            this.terms = EnumeratedItem.map((item: any) => {
+                let synonyms;
+                if (item.CDISCSynonym !== undefined) {
+                    if (Array.isArray(item.CDISCSynonym)) {
+                        synonyms = item.CDISCSynonym;
+                    } else {
+                        synonyms = [item.CDISCSynonym];
+                    }
+                }
+                return {
+                    conceptId: item._ExtCodeID,
+                    submissionValue: item._CodedValue,
+                    definition: item.CDISCDefinition,
+                    preferredTerm: item.PreferredTerm,
+                    synonyms,
+                };
+            });
         }
-        this.submissionValue = clRaw.submissionValue;
-        this.definition = clRaw.definition;
-        this.preferredTerm = clRaw.preferredTerm;
-        this.synonyms = clRaw.synonyms;
-        this.terms = clRaw.terms;
     }
 
     /**
@@ -2408,7 +2609,7 @@ export class CodeList extends BasicFunctions {
      * @param {String} [format=json] Specifies the output format. Possible values: json, csv.
      * @returns {String} Formatted codeList terms.
      */
-    getFormattedTerms (format: 'json' | 'csv' = 'json'): Term[]|string {
+    getFormattedTerms(format: 'json' | 'csv' = 'json'): Term[] | string {
         return convertToFormat(this.terms, format);
     }
 
@@ -2417,7 +2618,7 @@ export class CodeList extends BasicFunctions {
      *
      * @returns {Array} List of CT versions.
      */
-    async getVersions (): Promise<string[]> {
+    async getVersions(): Promise<string[]> {
         const result: string[] = [];
         if (this.href && this.conceptId) {
             // Get CT type from href for the root href
@@ -2470,7 +2671,7 @@ abstract class Item extends BasicFunctions {
     /** CDISC Library attribute. Value of the _links.self.type. */
     type?: string;
 
-    constructor ({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, type, href, coreObject }: ItemParameters = {}) {
+    constructor({ id, ordinal, name, label, simpleDatatype, codelist, codelistHref, type, href, coreObject }: ItemParameters = {}) {
         super();
         if (id) {
             this.id = id;
@@ -2498,7 +2699,7 @@ abstract class Item extends BasicFunctions {
      *
      * @param {Object} itemRaw Raw CDISC API response.
      */
-    parseItemResponse (itemRaw: any): void {
+    parseItemResponse(itemRaw: any): void {
         this.ordinal = itemRaw.ordinal;
         this.name = itemRaw.name;
         this.label = itemRaw.label;
@@ -2523,7 +2724,7 @@ abstract class Item extends BasicFunctions {
      * @param {String} [ctVer] Version of the CT, for example 2015-06-26. If blank, the last (not necessarily the latest) version will be returned.
      * @returns {Object|undefined} Instance of the CodeList class if item has a codelist.
      */
-    async getCodeList (ctVer: string): Promise<CodeList|undefined> {
+    async getCodeList(ctVer: string): Promise<CodeList | undefined> {
         if (this.codelistHref) {
             const rootCodeListRaw: any = await this.getRawResponse(this.codelistHref);
             if (rootCodeListRaw === undefined) {
@@ -2537,6 +2738,7 @@ abstract class Item extends BasicFunctions {
                             href = version.href;
                             return true;
                         }
+                        return false;
                     });
                 } else {
                     href = rootCodeListRaw._links.versions[rootCodeListRaw._links.versions.length - 1].href;
@@ -2590,7 +2792,7 @@ export class Variable extends Item {
     /** CDISC Library attribute. */
     describedValueDomain?: string;
 
-    constructor ({
+    constructor({
         id, ordinal, name, label, description, core, simpleDatatype, role, roleDescription,
         valueList = [], codelist, codelistHref, describedValueDomain, type, href, coreObject
     }: VariableParameters = {}) {
@@ -2608,7 +2810,7 @@ export class Variable extends Item {
      *
      * @param vRaw Raw CDISC API response
      */
-    parseResponse (vRaw: any): void {
+    parseResponse(vRaw: any): void {
         this.parseItemResponse(vRaw);
         this.description = vRaw.description;
         this.core = vRaw.core;
@@ -2661,7 +2863,7 @@ export class Field extends Item {
     /** CDISC Library attribute. */
     sdtmigDatasetMappingTargetsHref?: string;
 
-    constructor ({
+    constructor({
         id, ordinal, name, label, definition, questionText, prompt, completionInstructions, implementationNotes,
         simpleDatatype, mappingInstructions, sdtmigDatasetMappingTargetsHref, codelist, codelistHref, type, href, coreObject
     }: FieldParameters = {}
@@ -2681,7 +2883,7 @@ export class Field extends Item {
      *
      * @param {Object} fRaw Raw CDISC API response.
      */
-    parseResponse (fRaw: any): void {
+    parseResponse(fRaw: any): void {
         this.parseItemResponse(fRaw);
         this.definition = fRaw.definition;
         this.questionText = fRaw.questionText;

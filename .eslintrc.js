@@ -23,6 +23,7 @@ module.exports = {
         // disable rules
         '@typescript-eslint/strict-boolean-expressions': 'off',
         '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/space-before-function-paren': 'off',
         'no-prototype-builtins': 'off',
         '@typescript-eslint/restrict-plus-operands': 'off',
         '@typescript-eslint/ban-types': 'off',
