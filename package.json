@@ -1,6 +1,6 @@
 {
     "name": "cla-wrapper",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "description": "Wrapper for CDISC Library API",
     "main": "dist/classes/claWrapper.js",
     "scripts": {
@@ -31,19 +31,21 @@
     ],
     "license": "MIT",
     "dependencies": {
-        "@types/json2csv": "^5.0.1",
-        "@types/request": "^2.48.5",
+        "fast-xml-parser": "^3.19.0",
         "json2csv": "^5.0.0",
         "qs": "^6.9.4",
-        "request": "^2.88.2"
+        "request": "^2.88.2",
+        "types": "^0.1.1"
     },
     "devDependencies": {
         "@babel/core": "^7.12.10",
         "@babel/preset-env": "^7.12.11",
         "@babel/preset-typescript": "^7.12.7",
         "@types/jest": "^26.0.19",
+        "@types/json2csv": "^5.0.1",
         "@types/node": "*",
         "@types/qs": "^6.9.5",
+        "@types/request": "^2.48.5",
         "@typescript-eslint/eslint-plugin": "*",
         "@typescript-eslint/parser": "*",
         "babel-jest": "^26.6.3",

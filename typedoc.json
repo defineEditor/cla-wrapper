@@ -1,5 +1,5 @@
 {
-    "inputFiles": ["./src/classes/claWrapper.ts", "README.md", "LICENSE"],
+    "entryPoints": ["./src/classes/", "README.md", "LICENSE"],
     "excludePrivate": true,
     "out": "docs"
 }

@@ -46,4 +46,13 @@ describe('Product', () => {
         const items = await product.getCodeListList();
         expect(items.length).toBe(9);
     });
+    it('Remove contents', async () => {
+        product = await cl.getFullProduct('adamig11');
+        product.removeContent();
+        expect(Object.keys(product.dataStructures).length).toBe(0);
+        product = await cl.getFullProduct('adamct-2019-03-29');
+        product.removeContent();
+        expect(product.fullyLoaded).toBe(false);
+        expect(Object.keys(product.codelists).length).toBe(0);
+    });
 });

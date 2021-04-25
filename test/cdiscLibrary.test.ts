@@ -45,10 +45,11 @@ describe('CDISC Library', () => {
     });
     it('Product details', async () => {
         const pdShort = await cl.getProductDetails({ type: 'short', format: 'csv' });
-        const pdLong = await cl.getProductDetails({ type: 'long', format: 'json' });
+        let pdLong = await cl.getProductDetails({ type: 'long', format: 'json' });
+        pdLong = pdLong.filter(pd => ['adam-2-1', 'adamig-1-1', 'sdtmig-3-3', 'sdtm-1-7', 'cdashig-2-0'].includes(pd.id))
         expect(typeof pdShort === 'string').toBe(true);
-        expect(pdShort.substring(0,95)).toMatchSnapshot();
-        expect(pdLong[0]).toMatchSnapshot();
+        expect(pdShort.substring(0,11)).toMatchSnapshot();
+        expect(pdLong).toMatchSnapshot();
     });
     it('Product Group List', async () => {
         const pgList = await cl.getProductGroupList();
