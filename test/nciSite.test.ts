@@ -18,7 +18,7 @@ describe('Loading CT from NCI', () => {
 describe('Get CT from NCI site', () => {
     it('Get ADaM ct', async () => {
         cl.reset();
-        const result = await cl.getCTFromNCISite(['/ADaM/Archive/']);
+        const result = await cl.getCtFromNciSite(['/ADaM/Archive/']);
         expect(result['adamct-2019-12-20']).toMatchSnapshot();
     });
 });

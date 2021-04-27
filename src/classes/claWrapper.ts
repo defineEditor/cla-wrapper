@@ -480,7 +480,7 @@ export class CdiscLibrary {
      * @param folderList NCI of paths on the NCI site to scan. The paths are relative to ftp1/CDISC/.
      * @returns Object with of packages
      */
-    async getCTFromNCISite (pathList = [
+    async getCtFromNciSite (pathList = [
         '/SDTM/Archive/',
         '/ADaM/Archive/',
         '/Define-XML/Archive/',
@@ -489,16 +489,16 @@ export class CdiscLibrary {
         '/Glossary/Archive/'
     ]): Promise<{[name: string]: Product}> {
         if (!this.coreObject.useNciSiteForCt) {
-            throw Error('getCTFromNCISite function requires useNciSiteForCt set to true.');
+            throw Error('getCtFromNciSite function requires useNciSiteForCt set to true.');
         }
         const result: { [name: string]: Product } = {};
         await Promise.all(pathList.map(async (path) => {
-            const rawHtml = await this.coreObject.apiRequest('/nciSite/' + path);
+            const rawHtml = await this.coreObject.apiRequest('/nciSite' + path);
             // Keep only odm.xml
-            const aTags = rawHtml.matchAll(/<a\s*href=".*?">.*?Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/g);
+            const aTags = rawHtml.matchAll(/<a\s*href=".*?">(?:.*?Terminology|CDISC Glossary)\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/g);
             for (const tag of aTags) {
-                const name: string = tag[0].replace(/<a\s*href=".*?">(.*?)\s*Terminology\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/, '$1');
-                const version: string = tag[0].replace(/<a\s*href=".*?">.*?Terminology\s*(\d{4}-\d{2}-\d{2}).odm.xml\s*<\/a>/, '$1');
+                const name: string = tag[0].replace(/<a\s*href=".*?">(.*?)\s*(?:Terminology)?\s*\d{4}-\d{2}-\d{2}.odm.xml\s*<\/a>/, '$1');
+                const version: string = tag[0].replace(/<a\s*href=".*?">.*?(?:Terminology)?\s*(\d{4}-\d{2}-\d{2}).odm.xml\s*<\/a>/, '$1');
                 let idName: string;
                 if (name === 'CDISC Glossary') {
                     idName = 'glossary';
@@ -526,9 +526,11 @@ export class CdiscLibrary {
         } else {
             this.productClasses = {
                 terminology: new ProductClass({
+                    coreObject: this.coreObject,
                     name: 'terminology',
                     productGroups: {
                         packages: new ProductGroup({
+                            coreObject: this.coreObject,
                             name: 'packages',
                             products: result
                         })
