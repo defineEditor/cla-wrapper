@@ -1244,7 +1244,13 @@ export class Product extends BasicFunctions {
             this.version = rawXml.ODM._SourceSystemVersion;
             this.name = `${this.model} CT ${this.version}`;
             const codelists: { [name: string]: CodeList } = {};
-            rawXml.ODM.Study.MetaDataVersion.CodeList.forEach((codeListRaw: any) => {
+            let rawCodeLists;
+            if (Array.isArray(rawXml.ODM.Study.MetaDataVersion.CodeList)) {
+                rawCodeLists = rawXml.ODM.Study.MetaDataVersion.CodeList;
+            } else {
+                rawCodeLists = [rawXml.ODM.Study.MetaDataVersion.CodeList];
+            }
+            rawCodeLists.forEach((codeListRaw: any) => {
                 const codeList = new CodeList({
                     name: codeListRaw._Name,
                     coreObject: this.coreObject
