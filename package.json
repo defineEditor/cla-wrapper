@@ -6,7 +6,8 @@
     "scripts": {
         "test": "yarn build && jest -c jest.config.js --coverage --verbose",
         "build": "tsc",
-        "docs": "typedoc"
+        "docs": "typedoc",
+        "publish": "yarn build && npm publish"
     },
     "repository": "https://github.com/defineEditor/cla-wrapper",
     "author": "Dmitry Kolosov",
