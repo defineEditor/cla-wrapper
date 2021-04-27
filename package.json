@@ -1,13 +1,13 @@
 {
     "name": "cla-wrapper",
-    "version": "0.3.7",
+    "version": "0.3.8",
     "description": "Wrapper for CDISC Library API",
     "main": "dist/classes/claWrapper.js",
     "scripts": {
         "test": "yarn build && jest -c jest.config.js --coverage --verbose",
         "build": "tsc",
         "docs": "typedoc",
-        "publish": "yarn build && npm publish"
+        "release": "yarn build && npm publish"
     },
     "repository": "https://github.com/defineEditor/cla-wrapper",
     "author": "Dmitry Kolosov",
