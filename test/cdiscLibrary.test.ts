@@ -35,7 +35,8 @@ describe('CDISC Library', () => {
     });
     it('Get last updated info', async () => {
         const lastUpdated = await cl.getLastUpdated();
-        expect(Object.keys(lastUpdated)).toMatchSnapshot();
+
+        expect(Object.keys(lastUpdated).length > 0).toBe(true);
     });
     it('Product classes', async () => {
         const pc = await cl.getProductClasses();

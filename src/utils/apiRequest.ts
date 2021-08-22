@@ -32,7 +32,7 @@ const nciSiteFolder = {
 const nciSitePrefix = {
     adam: 'ADaM Terminology',
     protocol: 'Protocol Terminology',
-    glossary: 'CDISC Glossary Terminology',
+    glossary: 'CDISC Glossary',
     send: 'SEND Terminology',
     sdtm: 'SDTM Terminology',
     qs: 'QS Terminology',
@@ -60,7 +60,7 @@ const apiRequest = async ({ apiKey, baseUrl, endpoint, headers = {}, cache, useN
                 ...headers,
             },
         };
-    } else if (useNciSiteForCt && endpoint.startsWith('/nciSite/')) {
+    } else if (endpoint.startsWith('/nciSite/')) {
         const page = endpoint.replace(/\/nciSite(\/.*?)$/, '$1');
         const url = nciSiteUrl + page;
         req = {
