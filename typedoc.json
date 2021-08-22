@@ -1,5 +1,4 @@
 {
     "entryPoints": ["./src/classes/", "README.md", "LICENSE"],
-    "excludePrivate": true,
     "out": "docs"
 }
