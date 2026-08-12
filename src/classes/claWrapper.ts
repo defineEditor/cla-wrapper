@@ -111,7 +111,7 @@ export class CoreObject {
                 contentEncoding: this.contentEncoding,
             });
             // Count traffic
-            if (response.connection !== undefined) {
+            if (response.connection !== undefined && response.connection !== null) {
                 this.traffic.incoming += response.connection.bytesRead;
                 this.traffic.outgoing += response.connection.bytesWritten;
             }
